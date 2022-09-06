@@ -3,11 +3,14 @@ pragma solidity ^0.8.0;
 
 interface IGameJutsuRules {
     struct GameState {
-        bytes state;
+        uint256 gameId;
         uint256 nonce;
+        bytes state;
     }
 
     function isValidMove(GameState calldata state, bytes calldata move) external pure returns (bool);
 
     function transition(GameState calldata state, bytes calldata move) external pure returns (GameState memory);
+
+    function defaultInitialGameState() external pure returns (bytes memory);
 }

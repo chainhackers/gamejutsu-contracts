@@ -25,7 +25,11 @@ contract TicTacToeRules is IGameJutsuRules {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));
         b.cells[_m] = uint8(1 + _gameState.nonce % 2);
-        return GameState(abi.encode(b), _gameState.nonce + 1);
+        return GameState(_gameState.gameId, _gameState.nonce + 1, abi.encode(b));
+    }
+
+    function defaultInitialGameState() external pure returns (bytes memory) {
+        return abi.encode(Board([0, 0, 0, 0, 0, 0, 0, 0, 0], false, false));
     }
 
     function isCellEmpty(Board memory b, Move move) private pure returns (bool) {
