@@ -1,7 +1,13 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 interface IGameJutsuRules {
-    function isValidMove(bytes calldata state, bytes calldata move, uint256 nonce) external pure returns (bool);
+    struct GameState {
+        bytes state;
+        uint256 nonce;
+    }
 
-    function transition(bytes calldata state, bytes calldata move, uint256 nonce) external pure returns (bytes memory);
+    function isValidMove(GameState calldata state, bytes calldata move) external pure returns (bool);
+
+    function transition(GameState calldata state, bytes calldata move) external pure returns (GameState memory);
 }
