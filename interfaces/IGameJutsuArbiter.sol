@@ -17,5 +17,9 @@ interface IGameJutsuArbiter {
 
     function disputeMove(SignedMove calldata signedMove) external;
 
-    function initTimeout(SignedMove calldata signedMove) payable external;
+    function initMoveTimeout(SignedMove calldata signedMove) payable external;
+
+    function resolveTimeout(SignedMove calldata signedMove) external;
+
+    function finalizeTimeout(uint256 gameId) external;
 }
