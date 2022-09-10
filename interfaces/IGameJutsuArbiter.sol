@@ -22,4 +22,6 @@ interface IGameJutsuArbiter {
     function resolveTimeout(SignedMove calldata signedMove) external;
 
     function finalizeTimeout(uint256 gameId) external;
+
+    function getPlayers(uint256 gameId) external view returns(address[2] memory);
 }

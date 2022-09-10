@@ -6,7 +6,6 @@ import "../interfaces/IGameJutsuRules.sol";
 import "../interfaces/IGameJutsuArbiter.sol";
 
 /**
-    @notice First iteration: separate Arbiter per game
     @notice 2 players only
 */
 contract Arbiter is IGameJutsuArbiter {
@@ -16,11 +15,11 @@ contract Arbiter is IGameJutsuArbiter {
 
     struct Game {
         IGameJutsuRules rules;
-        mapping(address => bool) players;
-        address[] playersArray;
         uint256 stake;
         bool started;
         bool finished;
+        mapping(address => bool) players;
+        address[2] playersArray;
     }
 
     struct Timeout {
@@ -39,7 +38,7 @@ contract Arbiter is IGameJutsuArbiter {
         gameId = nextGameId;
         games[gameId].rules = rules;
         games[gameId].players[msg.sender] = true;
-        games[gameId].playersArray.push(msg.sender);
+        games[gameId].playersArray[0] = msg.sender;
         games[gameId].stake = msg.value;
         nextGameId++;
     }
@@ -50,7 +49,7 @@ contract Arbiter is IGameJutsuArbiter {
         require(games[gameId].started == false, "Arbiter: game already started");
         require(games[gameId].stake <= msg.value, "Arbiter: stake mismatch");
         games[gameId].players[msg.sender] = true;
-        games[gameId].playersArray.push(msg.sender);
+        games[gameId].playersArray[1] = msg.sender;
         games[gameId].stake += msg.value;
         games[gameId].started = true;
     }
@@ -124,6 +123,10 @@ contract Arbiter is IGameJutsuArbiter {
         require(timeouts[gameId].startTime + DEFAULT_TIMEOUT < block.timestamp, "Arbiter: timeout not expired");
 
         //TODO disqualify the faulty player, end the game, send stake to the winner
+    }
+
+    function getPlayers(uint256 gameId) external view returns (address[2] memory){
+        return games[gameId].playersArray;
     }
 
     /**
