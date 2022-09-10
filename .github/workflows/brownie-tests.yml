@@ -1,0 +1,53 @@
+name: Brownie Tests
+
+on:
+  push:
+    branches: '**'
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  brownie-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache Brownie dependencies
+        id: cache-brownie-packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.brownie/packages
+          key: brownie-packages
+      - name: Cache solc
+        id: cache-solc
+        uses: actions/cache@v3
+        with:
+          path: ~/.solcx
+          key: solcx
+      - name: Cache global yarn packages
+        id: cache-yarn
+        uses: actions/cache@v3
+        with:
+          path: ~/.yarn
+          key: yarn
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          yarn global add ganache
+          pip install eth-brownie
+      - name: brownie-compile
+        run: |
+          brownie compile
+      - name: brownie-test
+        run: |
+          brownie test
+      - uses: actions/upload-artifact@v3
+        with:
+          name: interfaces-abi
+          path: build/interfaces
+      - uses: actions/upload-artifact@v3
+        with:
+          name: contracts-abi
+          path: build/contracts
