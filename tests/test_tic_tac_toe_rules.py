@@ -1,5 +1,5 @@
 import pytest
-from brownie import reverts, interface, config, project, accounts, convert
+from brownie import reverts, interface, convert
 from eth_abi import encode_abi, decode_abi
 from random import randbytes
 
