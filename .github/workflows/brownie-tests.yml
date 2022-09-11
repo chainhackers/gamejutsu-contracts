@@ -37,8 +37,8 @@ jobs:
         run: |
           yarn global add ganache
           pip install eth-brownie
-          pip uninstall eth-account
-          pip install eth-account
+          pip uninstall -y eth-account
+          pip install -y eth-account
       - name: brownie-compile
         run: |
           brownie compile
