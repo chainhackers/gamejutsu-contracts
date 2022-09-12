@@ -167,8 +167,9 @@ def test_is_valid_signed_move(arbiter, rules, start_game):
     unencoded_game_move  = [game_id, nonce, signer.address, empty_board, one_cross_board, to_bytes("0x02")]
     print(f"game_move encoded: {game_move}")
     signature = signer.sign_message(game_move).signature
+    signature_player_b = player_b.sign_message(game_move).signature
     print(f"signature: {signature.hex()}")
-    signed_game_move = [   [game_id, nonce, signer.address, empty_board, one_cross_board, to_bytes("0x02")], [signature]]
+    signed_game_move = [   [game_id, nonce, signer.address, empty_board, one_cross_board, to_bytes("0x02")], [signature, signature_player_b]]
     recovered_address = arbiter.recoverAddress(unencoded_game_move, signature)
     print(f"address: {signer.address}")
     print(f"unencoded address: {unencoded_game_move[2]}")
