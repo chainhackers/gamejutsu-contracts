@@ -39,7 +39,8 @@ contract Arbiter is IGameJutsuArbiter {
     uint256 public nextGameId;
 
 
-    event StartGame(uint256 gameId);
+    event GamesStarted(uint256 gameId);
+    event GameFinished(uint256 gameId, address winner);
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("GameJutsu")), keccak256("0.1"), 137, 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC, bytes32(0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d)));
@@ -66,29 +67,21 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].stake += msg.value;
         games[gameId].started = true;
 
-        emit StartGame(gameId);
+        emit GamesStarted(gameId);
     }
 
     function disputeMove(SignedGameMove calldata signedMove) external {
         require(signedMove.signatures.length > 0, "Arbiter: no signatures");
         GameMove calldata gm = signedMove.gameMove;
         address recoveredAddress = recoverAddress(gm, signedMove.signatures[0]);
-        require(recoveredAddress == gm.player, "Arbiter: invalid signature");
-        games[gm.gameId].players[gm.player] = false;
+        require(recoveredAddress == gm.player, "Arbiter: first signature must belong to the player making the move");
+        require(!_isValidGameMove(gm), "Arbiter: valid move disputed");
 
-        require(!_isValidSignedGameMove(signedMove), "Arbiter: valid signed move disputed");
-        require(games[signedMove.gameMove.gameId].started && !games[signedMove.gameMove.gameId].finished, "Arbiter: game not started or finished");
+        Game storage game = games[gm.gameId];
+        require(game.started && !game.finished, "Arbiter: game not started yet or already finished");
+        require(game.players[gm.player], "Arbiter: player not in game");
 
-        bytes32 signedHash = ECDSA.toEthSignedMessageHash(abi.encode(signedMove.gameMove.oldState, signedMove.gameMove.newState, signedMove.gameMove.move));
-        uint256 gameId = signedMove.gameMove.gameId;
-        for (uint256 i = 0; i < NUM_PLAYERS; i++) {
-            //TODO consider using other signatures
-            address signer = ECDSA.recover(signedHash, signedMove.signatures[i]);
-            if (games[gameId].players[signer]) {
-                disqualifyPlayer(gameId, signer);
-                return;
-            }
-        }
+        disqualifyPlayer(gm.gameId, gm.player);
     }
 
 
@@ -133,7 +126,7 @@ contract Arbiter is IGameJutsuArbiter {
 
         //TODO extract common code to modifiers
         require(games[signedMove.gameMove.gameId].started && !games[signedMove.gameMove.gameId].finished, "Arbiter: game not started or finished");
-        require(_isValidSignedGameMove(signedMove), "Arbiter: invalid signed move");
+        require(_isValidGameMove(signedMove.gameMove), "Arbiter: invalid signed move");
         require(msg.value >= DEFAULT_TIMEOUT_STAKE, "Arbiter: stake mismatch");
         require(timeouts[signedMove.gameMove.gameId].startTime == 0, "Arbiter: timeout already started");
 
@@ -148,7 +141,7 @@ contract Arbiter is IGameJutsuArbiter {
         uint256 gameId = signedMove.gameMove.gameId;
         require(timeouts[gameId].startTime != 0, "Arbiter: timeout not started");
         require(timeouts[gameId].startTime + DEFAULT_TIMEOUT >= block.timestamp, "Arbiter: timeout expired");
-        require(_isValidSignedGameMove(signedMove), "Arbiter: invalid signed move");
+        require(_isValidGameMove(signedMove.gameMove), "Arbiter: invalid signed move");
 
         Timeout storage timeout = timeouts[gameId];
         require(gameStatesEqual(
@@ -178,23 +171,20 @@ contract Arbiter is IGameJutsuArbiter {
     /**
         @dev checks only state transition validity, all the signatures are checked elsewhere
     */
-    function _isValidSignedGameMove(SignedGameMove calldata signedMove) private view returns (bool) {
-        uint256 gid = signedMove.gameMove.gameId;
-        return gid == signedMove.gameMove.gameId &&
-        signedMove.gameMove.nonce + 1 == signedMove.gameMove.nonce &&
-        keccak256(signedMove.gameMove.oldState) != keccak256(signedMove.gameMove.newState) &&
-        games[gid].started &&
-        !games[gid].finished &&
-        games[gid].rules.isValidMove(
-            IGameJutsuRules.GameState(signedMove.gameMove.gameId, signedMove.gameMove.nonce, signedMove.gameMove.oldState),
-            signedMove.gameMove.move) &&
-        keccak256(games[gid].rules.transition(
-            IGameJutsuRules.GameState(signedMove.gameMove.gameId, signedMove.gameMove.nonce, signedMove.gameMove.oldState),
-            signedMove.gameMove.move).state) == keccak256(signedMove.gameMove.newState);
+    function _isValidGameMove(GameMove calldata move) private view returns (bool) {
+        Game storage game = games[move.gameId];
+        IGameJutsuRules.GameState memory oldGameState = IGameJutsuRules.GameState(move.gameId, move.nonce, move.oldState);
+
+        return keccak256(move.oldState) != keccak256(move.newState) &&
+        game.started &&
+        !game.finished &&
+        game.players[move.player] &&
+        game.rules.isValidMove(oldGameState, move.move) &&
+        keccak256(game.rules.transition(oldGameState, move.move).state) == keccak256(move.newState);
     }
 
-    function isValidSignedGameMove(SignedGameMove calldata signedMove) external view returns (bool) {
-        return _isValidSignedGameMove(signedMove);
+    function isValidGameMove(GameMove calldata signedMove) external view returns (bool) {
+        return _isValidGameMove(signedMove);
     }
 
     function disqualifyPlayer(uint256 gameId, address player) private {
@@ -202,6 +192,7 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].finished = true;
         address winner = games[gameId].playersArray[0] == player ? games[gameId].playersArray[1] : games[gameId].playersArray[0];
         payable(winner).transfer(games[gameId].stake);
+        emit GameFinished(gameId, winner);
     }
 
     function gameStatesEqual(IGameJutsuRules.GameState memory a, IGameJutsuRules.GameState memory b) private view returns (bool) {

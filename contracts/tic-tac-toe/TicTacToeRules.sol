@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../../../interfaces/IGameJutsuRules.sol";
+import "../../interfaces/IGameJutsuRules.sol";
 
 contract TicTacToeRules is IGameJutsuRules {
 
