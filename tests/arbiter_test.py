@@ -270,7 +270,7 @@ def test_is_valid_signed_move_x_move_twice(arbiter, rules, start_game, player_a,
     assert 'GameFinished' in tx.events
     assert tx.events['GameFinished']['winner'] == player_b.address  
 
-def test_is_valid_signed_move_x_move_than_y(arbiter, rules, start_game, player_a, player_b):
+def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_game, player_a, player_b):
 
     game_id = start_game(
         player_a.address,
@@ -283,7 +283,7 @@ def test_is_valid_signed_move_x_move_than_y(arbiter, rules, start_game, player_a
     one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     two_cross_board = encode_abi(STATE_TYPES, [[1, 2, 0, 0, 0, 0, 0, 0, 0], False, False])
     valid_move_data = to_bytes("0x00")
-    invalid_move_data = to_bytes("0x01")
+    valid_move_data2 = to_bytes("0x01")
 
     valid_move = [
         game_id,
@@ -299,7 +299,7 @@ def test_is_valid_signed_move_x_move_than_y(arbiter, rules, start_game, player_a
         player_a.address,
         one_cross_board,
         two_cross_board,
-        invalid_move_data
+        valid_move_data2
     ]
 
     signature_a = player_a.sign_message(encode_move(*valid_move)).signature
