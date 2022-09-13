@@ -1,6 +1,14 @@
 import pytest
 from brownie import reverts, interface, Wei
-from eth_abi import encode_abi, decode_abi
+from eth_abi import encode_abi
+from eth_account.messages import SignableMessage
+from brownie.convert import to_bytes
+
+from eth_account.messages import encode_structured_data
+from eth_typing import ChecksumAddress
+from brownie.network.account import PublicKeyAccount
+
+# from eip712.messages import EIP712Message, EIP712Type
 
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -15,41 +23,55 @@ def arbiter(Arbiter, dev):
     return dev.deploy(Arbiter)
 
 
+@pytest.fixture(scope="module")
+def player_a(create_funded_eth_account):
+    return create_funded_eth_account()
+
+
+@pytest.fixture(scope="module")
+def player_b(create_funded_eth_account):
+    return create_funded_eth_account()
+
+
+def balance(account):
+    return PublicKeyAccount(account.address).balance()
+
+
 STATE_TYPES = ["uint8[9]", "bool", "bool"]
 
 
 def test_propose_game(arbiter, rules, player_a, player_b):
-    tx = arbiter.proposeGame(rules, {'value': 0, 'from': player_a})
+    tx = arbiter.proposeGame(rules, {'value': 0, 'from': player_a.address})
     assert tx.return_value == 0
     game_rules, game_stake, game_started, game_finished = arbiter.games(0)
     assert game_rules == rules
     assert game_stake == 0
     assert not game_started
     assert not game_finished
-    assert arbiter.getPlayers(0) == [player_a, ZERO_ADDRESS]
+    assert arbiter.getPlayers(0) == [player_a.address, ZERO_ADDRESS]
 
-    tx = arbiter.proposeGame(rules, {'value': Wei("1 ether"), 'from': player_b})
+    tx = arbiter.proposeGame(rules, {'value': Wei("1 ether"), 'from': player_b.address})
     assert tx.return_value == 1
     game_rules, game_stake, game_started, game_finished = arbiter.games(1)
     assert game_rules == rules
     assert game_stake == "1 ether"
     assert not game_started
     assert not game_finished
-    assert arbiter.getPlayers(1) == [player_b, ZERO_ADDRESS]
+    assert arbiter.getPlayers(1) == [player_b.address, ZERO_ADDRESS]
 
 
 def test_accept_game(arbiter, rules, player_a, player_b):
     stake = Wei("0.1 ether")
-    arbiter.proposeGame(rules, {'value': stake, 'from': player_a})
+    arbiter.proposeGame(rules, {'value': stake, 'from': player_a.address})
     with reverts("Arbiter: stake mismatch"):
-        arbiter.acceptGame(0, {'from': player_b})
-    arbiter.acceptGame(0, {'value': stake, 'from': player_b})
+        arbiter.acceptGame(0, {'from': player_b.address})
+    arbiter.acceptGame(0, {'value': stake, 'from': player_b.address})
     game_rules, game_stake, game_started, game_finished = arbiter.games(0)
     assert game_rules == rules
     assert game_stake == "0.2 ether"
     assert game_started
     assert not game_finished
-    assert arbiter.getPlayers(0) == [player_a, player_b]
+    assert arbiter.getPlayers(0) == [player_a.address, player_b.address]
 
 
 @pytest.fixture
@@ -64,5 +86,98 @@ def start_game(arbiter, rules):
     return start_it
 
 
-def test_is_valid_signed_move(arbiter, rules, player_a, player_b, start_game):
-    game_id = start_game(player_a, player_b, Wei('0.1 ether'))
+def encode_move(
+        game_id: int,
+        nonce: int,
+        player: ChecksumAddress,
+        old_state: bytes,
+        new_state: bytes,
+        move: bytes) -> SignableMessage:
+    data = {
+        "types": {
+            "EIP712Domain": [
+                {"name": "name", "type": "string"},
+                {"name": "version", "type": "string"},
+                {"name": "chainId", "type": "uint256"},
+                {"name": "verifyingContract", "type": "address"},
+                {"name": "salt", "type": "bytes32"},
+            ],
+            "GameMove": [
+                {"name": "gameId", "type": "uint256"},
+                {"name": "nonce", "type": "uint256"},
+                {"name": "player", "type": "address"},
+                {"name": "oldState", "type": "bytes"},
+                {"name": "newState", "type": "bytes"},
+                {"name": "move", "type": "bytes"}
+            ],
+        },
+        "domain": {
+            "name": "GameJutsu",
+            "version": "0.1",
+            "chainId": 137,
+            "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+            "salt": to_bytes("0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d", "bytes32"),
+        },
+        "primaryType": "GameMove",
+        "message": {
+            "gameId": game_id,
+            "nonce": nonce,
+            "player": player,
+            "oldState": old_state,
+            "newState": new_state,
+            "move": move
+        },
+    }
+    return encode_structured_data(data)
+
+
+def test_is_valid_signed_move(arbiter, rules, start_game, player_a, player_b):
+    # https://codesandbox.io/s/gamejutsu-moves-eip712-no-nested-types-p5fnzf?file=/src/index.js
+
+    game_id = start_game(
+        player_a.address,
+        player_b.address,
+        Wei('0.1 ether')
+    )
+
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    nonce = 0
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    valid_move_data = to_bytes("0x00")
+    invalid_move_data = to_bytes("0x01")
+
+    valid_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        empty_board,
+        one_cross_board,
+        valid_move_data
+    ]
+    invalid_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        empty_board,
+        one_cross_board,
+        invalid_move_data
+    ]
+
+    signature_a = player_a.sign_message(encode_move(*valid_move)).signature
+    valid_signed_game_move = [
+        valid_move,
+        [signature_a]
+    ]
+    with reverts():
+        arbiter.disputeMove(valid_signed_game_move, {'from': player_b.address})
+
+    signature_a = player_a.sign_message(encode_move(*invalid_move)).signature
+    invalid_signed_game_move = [
+        invalid_move,
+        [signature_a]
+    ]
+    tx = arbiter.disputeMove(invalid_signed_game_move, {'from': player_b.address})
+    rules, stake, started, finished = arbiter.games(game_id)
+    assert finished
+    assert 'GameFinished' in tx.events
+    assert tx.events['GameFinished']['winner'] == player_b.address
