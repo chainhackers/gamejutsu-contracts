@@ -8,14 +8,12 @@ from eth_account.messages import encode_structured_data
 from eth_typing import ChecksumAddress
 from brownie.network.account import PublicKeyAccount
 
-# from eip712.messages import EIP712Message, EIP712Type
-
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 
 @pytest.fixture(scope='module')
 def rules(TicTacToeRules, dev):
-    return dev.deploy(TicTacToeRules)
+    return interface.IGameJutsuRules(dev.deploy(TicTacToeRules))
 
 
 @pytest.fixture
@@ -32,9 +30,10 @@ def player_a(create_funded_eth_account):
 def player_b(create_funded_eth_account):
     return create_funded_eth_account()
 
+
 @pytest.fixture(scope="module")
 def player_c(create_funded_eth_account):
-    return create_funded_eth_account()    
+    return create_funded_eth_account()
 
 
 def balance(account):
@@ -80,11 +79,11 @@ def test_accept_game(arbiter, rules, player_a, player_b):
 
 @pytest.fixture
 def start_game(arbiter, rules):
-    def start_it(a, b, stake):
+    def start_it(player_a, player_b, stake):
         stake_wei = Wei(f"{stake} ether")
-        tx = arbiter.proposeGame(rules, {'value': stake, 'from': a})
+        tx = arbiter.proposeGame(rules, {'value': stake, 'from': player_a})
         game_id = tx.return_value
-        arbiter.acceptGame(game_id, {'value': stake, 'from': b})
+        arbiter.acceptGame(game_id, {'value': stake, 'from': player_b})
         return game_id
 
     return start_it
@@ -187,7 +186,6 @@ def test_is_valid_signed_move(arbiter, rules, start_game, player_a, player_b):
     assert tx.events['GameFinished']['winner'] == player_b.address
 
 
-
 def test_is_valid_signed_move_wrong_user(arbiter, rules, start_game, player_a, player_b, player_c):
     game_id = start_game(
         player_a.address,
@@ -198,7 +196,7 @@ def test_is_valid_signed_move_wrong_user(arbiter, rules, start_game, player_a, p
     empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
     one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
-    
+
     invalid_move_data = to_bytes("0x01")
 
     invalid_move = [
@@ -217,10 +215,9 @@ def test_is_valid_signed_move_wrong_user(arbiter, rules, start_game, player_a, p
     ]
     with reverts():
         tx = arbiter.disputeMove(invalid_signed_game_move, {'from': player_b.address})
-    
+
 
 def test_is_valid_signed_move_x_twice(arbiter, rules, start_game, player_a, player_b):
-
     game_id = start_game(
         player_a.address,
         player_b.address,
@@ -268,62 +265,63 @@ def test_is_valid_signed_move_x_twice(arbiter, rules, start_game, player_a, play
     rules, stake, started, finished = arbiter.games(game_id)
     assert finished
     assert 'GameFinished' in tx.events
-    assert tx.events['GameFinished']['winner'] == player_b.address 
+    assert tx.events['GameFinished']['winner'] == player_b.address
 
 
-def test_is_valid_signed_move_x_twice_with_same_nonce(arbiter, rules, start_game, player_a, player_b):
-
+# TODO implement disputeMove with multiple moves as arguments
+@pytest.mark.xfail
+def test_is_valid_signed_move_x_moves_twice_with_same_nonce(arbiter, rules, start_game, player_a, player_b):
     game_id = start_game(
-        player_a.address,
-        player_b.address,
-        Wei('0.1 ether')
+        player_a=player_a.address,
+        player_b=player_b.address,
+        stake=Wei('0.1 ether')
     )
 
     empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
     one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     two_cross_board = abi.encode(STATE_TYPES, [[1, 1, 0, 0, 0, 0, 0, 0, 0], False, False])
-    valid_move_data = to_bytes("0x00")
-    invalid_move_data = to_bytes("0x01")
+    move_to_cell_0_data = to_bytes("0x00")
+    move_to_cell_1_data = to_bytes("0x01")
 
-    valid_move = [
+    player_a_moves_to_cell_0 = [
         game_id,
         nonce,
         player_a.address,
         empty_board,
         one_cross_board,
-        valid_move_data
+        move_to_cell_0_data
     ]
-    invalid_move = [
+    player_a_moves_to_cell_1 = [
         game_id,
         nonce,
         player_a.address,
         one_cross_board,
         two_cross_board,
-        invalid_move_data
+        move_to_cell_1_data
     ]
 
-    signature_a = player_a.sign_message(encode_move(*valid_move)).signature
+    signature_a = player_a.sign_message(encode_move(*player_a_moves_to_cell_0)).signature
     valid_signed_game_move = [
-        valid_move,
+        player_a_moves_to_cell_0,
         [signature_a]
     ]
     with reverts():
         arbiter.disputeMove(valid_signed_game_move, {'from': player_b.address})
 
-    signature_a = player_a.sign_message(encode_move(*invalid_move)).signature
+    signature_a = player_a.sign_message(encode_move(*player_a_moves_to_cell_1)).signature
     invalid_signed_game_move = [
-        invalid_move,
+        player_a_moves_to_cell_1,
         [signature_a]
     ]
     tx = arbiter.disputeMove(invalid_signed_game_move, {'from': player_b.address})
     rules, stake, started, finished = arbiter.games(game_id)
     assert finished
     assert 'GameFinished' in tx.events
-    assert tx.events['GameFinished']['winner'] == player_b.address 
+    assert tx.events['GameFinished']['winner'] == player_b.address
+
 
 def test_is_valid_signed_move_x_cant_place_o(arbiter, rules, start_game, player_a, player_b):
-
     game_id = start_game(
         player_a.address,
         player_b.address,
@@ -371,10 +369,10 @@ def test_is_valid_signed_move_x_cant_place_o(arbiter, rules, start_game, player_
     rules, stake, started, finished = arbiter.games(game_id)
     assert finished
     assert 'GameFinished' in tx.events
-    assert tx.events['GameFinished']['winner'] == player_b.address      
+    assert tx.events['GameFinished']['winner'] == player_b.address
+
 
 def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_game, player_a, player_b):
-
     game_id = start_game(
         player_a.address,
         player_b.address,
@@ -398,7 +396,7 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
     ]
     valid_move2 = [
         game_id,
-        nonce+1,
+        nonce + 1,
         player_a.address,
         one_cross_board,
         two_cross_board,
@@ -421,4 +419,3 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
 
     with reverts():
         arbiter.disputeMove(valid_signed_game_move2, {'from': player_a.address})
-      

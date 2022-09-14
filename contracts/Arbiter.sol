@@ -24,7 +24,7 @@ contract Arbiter is IGameJutsuArbiter {
         uint256 stake;
         bool started;
         bool finished;
-        mapping(address => bool) players;
+        mapping(address => uint8) players;
         address[2] playersArray;
     }
 
@@ -51,7 +51,7 @@ contract Arbiter is IGameJutsuArbiter {
     function proposeGame(IGameJutsuRules rules) payable external returns (uint256 gameId) {
         gameId = nextGameId;
         games[gameId].rules = rules;
-        games[gameId].players[msg.sender] = true;
+        games[gameId].players[msg.sender] = 1;
         games[gameId].playersArray[0] = msg.sender;
         games[gameId].stake = msg.value;
         nextGameId++;
@@ -59,10 +59,11 @@ contract Arbiter is IGameJutsuArbiter {
 
 
     function acceptGame(uint256 gameId) payable external {
-        require(games[gameId].players[msg.sender] == false, "Arbiter: player already in game");
+        require(games[gameId].players[msg.sender] == 0, "Arbiter: player already in game");
         require(games[gameId].started == false, "Arbiter: game already started");
+        require(games[gameId].playersArray[0] != address(0), "Arbiter: game not proposed");
         require(games[gameId].stake <= msg.value, "Arbiter: stake mismatch");
-        games[gameId].players[msg.sender] = true;
+        games[gameId].players[msg.sender] = 2;
         games[gameId].playersArray[1] = msg.sender;
         games[gameId].stake += msg.value;
         games[gameId].started = true;
@@ -70,6 +71,7 @@ contract Arbiter is IGameJutsuArbiter {
         emit GamesStarted(gameId);
     }
 
+    //TODO add dispute move version based on comparison to previously signed moves
     function disputeMove(SignedGameMove calldata signedMove) external {
         require(signedMove.signatures.length > 0, "Arbiter: no signatures");
         GameMove calldata gm = signedMove.gameMove;
@@ -79,7 +81,7 @@ contract Arbiter is IGameJutsuArbiter {
 
         Game storage game = games[gm.gameId];
         require(game.started && !game.finished, "Arbiter: game not started yet or already finished");
-        require(game.players[gm.player], "Arbiter: player not in game");
+        require(game.players[gm.player] != 0, "Arbiter: player not in game");
 
         disqualifyPlayer(gm.gameId, gm.player);
     }
@@ -101,7 +103,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function isPlayer(uint256 gameId, address player) external view returns (bool) {//TODO remove
-        return games[gameId].players[player];
+        return games[gameId].players[player] != 0;
     }
 
     function getPlayerFromSignedGameMove(SignedGameMove calldata signedGameMove) external view returns (address) {
@@ -121,7 +123,7 @@ contract Arbiter is IGameJutsuArbiter {
             bytes32 signedHash = ECDSA.toEthSignedMessageHash(abi.encode(signedMove.gameMove.oldState, signedMove.gameMove.newState, signedMove.gameMove.move));
             //TODO move to lib
             address signer = ECDSA.recover(signedHash, signedMove.signatures[i]);
-            require(games[gameId].players[signer], "Arbiter: signer not in game");
+            require(games[gameId].players[signer] != 0, "Arbiter: signer not in game");
         }
 
         //TODO extract common code to modifiers
@@ -150,7 +152,7 @@ contract Arbiter is IGameJutsuArbiter {
             "Arbiter: timeout move mismatch");
 
         address[] memory signers = getSigners(signedMove);
-        require(signers.length > 0 && games[gameId].players[signers[1]], "Arbiter: signer not in game");
+        require(signers.length > 0 && games[gameId].players[signers[1]] != 0, "Arbiter: signer not in game");
         //TODO verify it's signed by exactly the right player
         //TODO add whose move it is to the game state
         timeout.startTime = 0;
@@ -174,13 +176,12 @@ contract Arbiter is IGameJutsuArbiter {
     function _isValidGameMove(GameMove calldata move) private view returns (bool) {
         Game storage game = games[move.gameId];
         IGameJutsuRules.GameState memory oldGameState = IGameJutsuRules.GameState(move.gameId, move.nonce, move.oldState);
-
         return keccak256(move.oldState) != keccak256(move.newState) &&
         game.started &&
         !game.finished &&
-        game.players[move.player] &&
-        game.rules.isValidMove(oldGameState, move.move) &&
-        keccak256(game.rules.transition(oldGameState, move.move).state) == keccak256(move.newState);
+        game.players[move.player] != 0 &&
+        game.rules.isValidMove(oldGameState, game.players[move.player] - 1, move.move) &&
+        keccak256(game.rules.transition(oldGameState, game.players[move.player] - 1, move.move).state) == keccak256(move.newState);
     }
 
     function isValidGameMove(GameMove calldata signedMove) external view returns (bool) {
@@ -188,7 +189,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function disqualifyPlayer(uint256 gameId, address player) private {
-        require(games[gameId].players[player], "Arbiter: player not in game");
+        require(games[gameId].players[player] != 0, "Arbiter: player not in game");
         games[gameId].finished = true;
         address winner = games[gameId].playersArray[0] == player ? games[gameId].playersArray[1] : games[gameId].playersArray[0];
         payable(winner).transfer(games[gameId].stake);
