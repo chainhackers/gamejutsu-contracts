@@ -1,3 +1,12 @@
+/*
+  ________                           ____.       __
+ /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+/   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+\    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+ \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+        \/     \/      \/     \/                          \/
+https://gamejutsu.app
+*/
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -6,8 +15,14 @@ import "../interfaces/IGameJutsuRules.sol";
 import "../interfaces/IGameJutsuArbiter.sol";
 
 /**
-    @notice 2 players only
-*/
+    @title GameJutsu Arbiter
+    @notice gets cheaters bang to rights
+    @notice ETHOnline2022 submission by ChainHackers
+    @notice 2 players only for now to make it doable during the hackathon
+    @notice Major source of inspiration: https://magmo.com/force-move-games.pdf
+    @author Gene A. Tsvigun
+    @author Vic G. Larson
+  */
 contract Arbiter is IGameJutsuArbiter {
     /// @notice The EIP-712 typehash for the contract's domain
     bytes32 public constant DOMAIN_TYPEHASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)");
@@ -39,8 +54,9 @@ contract Arbiter is IGameJutsuArbiter {
     uint256 public nextGameId;
 
 
-    event GamesStarted(uint256 gameId);
-    event GameFinished(uint256 gameId, address winner);
+    event GamesStarted(uint256 gameId, uint256 stake, address[2] players);
+    event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
+    event PlayerDisqualified(uint256 gameId, address player);
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("GameJutsu")), keccak256("0.1"), 137, 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC, bytes32(0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d)));
@@ -68,7 +84,7 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].stake += msg.value;
         games[gameId].started = true;
 
-        emit GamesStarted(gameId);
+        emit GamesStarted(gameId, games[gameId].stake, games[gameId].playersArray);
     }
 
     //TODO add dispute move version based on comparison to previously signed moves
@@ -188,12 +204,13 @@ contract Arbiter is IGameJutsuArbiter {
         return _isValidGameMove(signedMove);
     }
 
-    function disqualifyPlayer(uint256 gameId, address player) private {
-        require(games[gameId].players[player] != 0, "Arbiter: player not in game");
+    function disqualifyPlayer(uint256 gameId, address cheater) private {
+        require(games[gameId].players[cheater] != 0, "Arbiter: player not in game");
         games[gameId].finished = true;
-        address winner = games[gameId].playersArray[0] == player ? games[gameId].playersArray[1] : games[gameId].playersArray[0];
+        address winner = games[gameId].playersArray[0] == cheater ? games[gameId].playersArray[1] : games[gameId].playersArray[0];
         payable(winner).transfer(games[gameId].stake);
-        emit GameFinished(gameId, winner);
+        emit GameFinished(gameId, winner, cheater, false);
+        emit PlayerDisqualified(gameId, cheater);
     }
 
     function gameStatesEqual(IGameJutsuRules.GameState memory a, IGameJutsuRules.GameState memory b) private view returns (bool) {
