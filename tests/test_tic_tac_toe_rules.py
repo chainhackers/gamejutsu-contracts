@@ -6,7 +6,7 @@ from random import randbytes
 
 @pytest.fixture(scope='module')
 def rules(TicTacToeRules, dev):
-    return dev.deploy(TicTacToeRules)
+    return interface.IGameJutsuRules(dev.deploy(TicTacToeRules))
 
 
 @pytest.fixture
@@ -15,6 +15,7 @@ def game_id():
 
 
 STATE_TYPES = ["uint8[9]", "bool", "bool"]
+X, O = 0, 1
 
 
 def test_is_valid_move(rules, game_id):
@@ -22,23 +23,26 @@ def test_is_valid_move(rules, game_id):
     nonce = 0
     game_state = [game_id, nonce, empty_board]
 
-    # every move is valid on an empty board
+    # every cross move is valid on an empty board, naught can't move first
     for i in range(9):
         move_to_cell_i = convert.to_bytes(i)
-        assert rules.isValidMove(game_state, move_to_cell_i) is True
+        assert rules.isValidMove(game_state, X, move_to_cell_i) is True
+        assert rules.isValidMove(game_state, O, move_to_cell_i) is False
 
     # no move is valid when any of the players has won
     cross_wins = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], True, False])
     game_state = [game_id, nonce, cross_wins]
     for i in range(9):
         move_to_cell_i = convert.to_bytes(i)
-        assert rules.isValidMove(game_state, move_to_cell_i) is False
+        assert rules.isValidMove(game_state, X, move_to_cell_i) is False
+        assert rules.isValidMove(game_state, O, move_to_cell_i) is False
 
     nought_wins = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, True])
     game_state = [game_id, nonce, nought_wins]
     for i in range(9):
         move_to_cell_i = convert.to_bytes(i)
-        assert rules.isValidMove(game_state, move_to_cell_i) is False
+        assert rules.isValidMove(game_state, X, move_to_cell_i) is False
+        assert rules.isValidMove(game_state, O, move_to_cell_i) is False
 
     # X1 → O5 → X9 → O3 → X7
     # X  _  O
@@ -46,17 +50,35 @@ def test_is_valid_move(rules, game_id):
     # X  _  X
 
     board = abi.encode(STATE_TYPES, [[1, 0, 2, 0, 2, 0, 1, 0, 1], False, False])
-    nonce = 5
+    nonce = 5  # O moves next
     game_state = [game_id, nonce, board]
-    assert rules.isValidMove(game_state, convert.to_bytes(0)) is False
-    assert rules.isValidMove(game_state, convert.to_bytes(1)) is True
-    assert rules.isValidMove(game_state, convert.to_bytes(2)) is False
-    assert rules.isValidMove(game_state, convert.to_bytes(3)) is True
-    assert rules.isValidMove(game_state, convert.to_bytes(4)) is False
-    assert rules.isValidMove(game_state, convert.to_bytes(5)) is True
-    assert rules.isValidMove(game_state, convert.to_bytes(6)) is False
-    assert rules.isValidMove(game_state, convert.to_bytes(7)) is True
-    assert rules.isValidMove(game_state, convert.to_bytes(8)) is False
+
+    def is_valid(player_id: int, cell_id: int) -> bool:
+        return rules.isValidMove(game_state, player_id, convert.to_bytes(cell_id))
+
+    assert is_valid(X, 0) is False
+    assert is_valid(O, 0) is False
+
+    assert is_valid(X, 1) is False
+    assert is_valid(O, 1) is True
+
+    assert is_valid(X, 2) is False
+    assert is_valid(O, 3) is True
+
+    assert is_valid(X, 4) is False
+    assert is_valid(O, 4) is False
+
+    assert is_valid(X, 5) is False
+    assert is_valid(O, 5) is True
+
+    assert is_valid(X, 6) is False
+    assert is_valid(O, 6) is False
+
+    assert is_valid(X, 7) is False
+    assert is_valid(O, 7) is True
+
+    assert is_valid(X, 8) is False
+    assert is_valid(O, 8) is False
 
 
 def test_transition(rules, game_id):
@@ -64,7 +86,7 @@ def test_transition(rules, game_id):
     nonce = 0
     game_state = [game_id, nonce, empty_board]
     for i in range(9):
-        next_game_id, next_nonce, next_state = rules.transition(game_state, convert.to_bytes(i))
+        next_game_id, next_nonce, next_state = rules.transition(game_state, X, convert.to_bytes(i))
         assert next_game_id == game_id
         assert next_nonce == 1
         next_board = abi.decode(STATE_TYPES, next_state)
@@ -77,7 +99,7 @@ def test_transition(rules, game_id):
     nonce = 1
     game_state = [game_id, nonce, empty_board]
     for i in range(9):
-        next_game_id, next_nonce, next_state = rules.transition(game_state, convert.to_bytes(i))
+        next_game_id, next_nonce, next_state = rules.transition(game_state, O, convert.to_bytes(i))
         assert next_game_id == game_id
         assert next_nonce == 2
         next_board = abi.decode(STATE_TYPES, next_state)

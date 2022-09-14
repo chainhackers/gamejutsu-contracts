@@ -8,9 +8,9 @@ interface IGameJutsuRules {
         bytes state;
     }
 
-    function isValidMove(GameState calldata state, bytes calldata move) external pure returns (bool);
+    function isValidMove(GameState calldata state, uint8 playerId, bytes calldata move) external pure returns (bool);
 
-    function transition(GameState calldata state, bytes calldata move) external pure returns (GameState memory);
+    function transition(GameState calldata state, uint8 playerId, bytes calldata move) external pure returns (GameState memory);
 
     function defaultInitialGameState() external pure returns (bytes memory);
 }

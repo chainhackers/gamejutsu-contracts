@@ -13,15 +13,15 @@ contract TicTacToeRules is IGameJutsuRules {
 
     type Move is uint8;
 
-    function isValidMove(GameState calldata _gameState, bytes calldata _move) external pure override returns (bool) {
+    function isValidMove(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));
         Move m = Move.wrap(_m);
-
-        return !b.crossWins && !b.naughtWins && isMoveWithinRange(m) && isCellEmpty(b, m);
+        bool playerIdMatchesTurn = _gameState.nonce % 2 == playerId;
+        return playerIdMatchesTurn && !b.crossWins && !b.naughtWins && isMoveWithinRange(m) && isCellEmpty(b, m);
     }
 
-    function transition(GameState calldata _gameState, bytes calldata _move) external pure override returns (GameState memory) {
+    function transition(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));
         b.cells[_m] = uint8(1 + _gameState.nonce % 2);
