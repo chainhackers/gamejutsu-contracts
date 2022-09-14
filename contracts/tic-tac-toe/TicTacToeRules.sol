@@ -1,24 +1,42 @@
+/*
+  ________                           ____.       __
+ /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+/   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+\    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+ \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+        \/     \/      \/     \/                          \/
+https://gamejutsu.app
+*/
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
 import "../../interfaces/IGameJutsuRules.sol";
 
+/**
+    @title TicTacToe Rules
+    @notice Our take on the classic game, rules defined on-chain to never be checked
+    @notice except by the arbiter when a dispute arises.
+    @notice ETHOnline2022 submission by ChainHackers
+    @author Gene A. Tsvigun
+    @dev The state encodes the board as a 3x3 array of uint8s with 0 for empty, 1 for X, and 2 for O
+    @dev explicitly keeping wins as `bool crossesWin` and `bool noughtsWin`
+  */
 contract TicTacToeRules is IGameJutsuRules {
 
     struct Board {
         uint8[9] cells; //TODO pack it into a single uint16
-        bool crossWins;
-        bool naughtWins;
+        bool crossesWin;
+        bool naughtsWin;
     }
 
-    type Move is uint8;
+type Move is uint8;
 
     function isValidMove(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));
         Move m = Move.wrap(_m);
         bool playerIdMatchesTurn = _gameState.nonce % 2 == playerId;
-        return playerIdMatchesTurn && !b.crossWins && !b.naughtWins && isMoveWithinRange(m) && isCellEmpty(b, m);
+        return playerIdMatchesTurn && !b.crossesWin && !b.naughtsWin && isMoveWithinRange(m) && isCellEmpty(b, m);
     }
 
     function transition(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
