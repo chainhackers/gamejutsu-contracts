@@ -1,6 +1,6 @@
 import pytest
 from brownie import reverts, interface, Wei
-from eth_abi import abi
+from eth_abi import encode_abi, decode_abi
 from eth_account.messages import SignableMessage
 from brownie.convert import to_bytes
 
@@ -143,9 +143,9 @@ def test_is_valid_signed_move(arbiter, rules, start_game, player_a, player_b):
         Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     valid_move_data = to_bytes("0x00")
     invalid_move_data = to_bytes("0x01")
 
@@ -193,9 +193,9 @@ def test_is_valid_signed_move_wrong_user(arbiter, rules, start_game, player_a, p
         Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
 
     invalid_move_data = to_bytes("0x01")
 
@@ -224,10 +224,10 @@ def test_is_valid_signed_move_x_twice(arbiter, rules, start_game, player_a, play
         Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
-    two_cross_board = abi.encode(STATE_TYPES, [[1, 1, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    two_cross_board = encode_abi(STATE_TYPES, [[1, 1, 0, 0, 0, 0, 0, 0, 0], False, False])
     valid_move_data = to_bytes("0x00")
     invalid_move_data = to_bytes("0x01")
 
@@ -277,10 +277,10 @@ def test_is_valid_signed_move_x_moves_twice_with_same_nonce(arbiter, rules, star
         stake=Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
-    two_cross_board = abi.encode(STATE_TYPES, [[1, 1, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    two_cross_board = encode_abi(STATE_TYPES, [[1, 1, 0, 0, 0, 0, 0, 0, 0], False, False])
     move_to_cell_0_data = to_bytes("0x00")
     move_to_cell_1_data = to_bytes("0x01")
 
@@ -328,10 +328,10 @@ def test_is_valid_signed_move_x_cant_place_o(arbiter, rules, start_game, player_
         Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
-    two_cross_board = abi.encode(STATE_TYPES, [[1, 2, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    two_cross_board = encode_abi(STATE_TYPES, [[1, 2, 0, 0, 0, 0, 0, 0, 0], False, False])
     valid_move_data = to_bytes("0x00")
     invalid_move_data = to_bytes("0x01")
 
@@ -379,10 +379,10 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
         Wei('0.1 ether')
     )
 
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
-    one_cross_board = abi.encode(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
-    two_cross_board = abi.encode(STATE_TYPES, [[1, 2, 0, 0, 0, 0, 0, 0, 0], False, False])
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    two_cross_board = encode_abi(STATE_TYPES, [[1, 2, 0, 0, 0, 0, 0, 0, 0], False, False])
     valid_move_data = to_bytes("0x00")
     valid_move_data2 = to_bytes("0x01")
 

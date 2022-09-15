@@ -1,6 +1,6 @@
 import pytest
 from brownie import reverts, interface, convert
-from eth_abi import abi
+from eth_abi import encode_abi, decode_abi
 from random import randbytes
 
 
@@ -19,7 +19,7 @@ X, O = 0, 1
 
 
 def test_is_valid_move(rules, game_id):
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
     game_state = [game_id, nonce, empty_board]
 
@@ -30,14 +30,14 @@ def test_is_valid_move(rules, game_id):
         assert rules.isValidMove(game_state, O, move_to_cell_i) is False
 
     # no move is valid when any of the players has won
-    cross_wins = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], True, False])
+    cross_wins = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], True, False])
     game_state = [game_id, nonce, cross_wins]
     for i in range(9):
         move_to_cell_i = convert.to_bytes(i)
         assert rules.isValidMove(game_state, X, move_to_cell_i) is False
         assert rules.isValidMove(game_state, O, move_to_cell_i) is False
 
-    nought_wins = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, True])
+    nought_wins = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, True])
     game_state = [game_id, nonce, nought_wins]
     for i in range(9):
         move_to_cell_i = convert.to_bytes(i)
@@ -49,7 +49,7 @@ def test_is_valid_move(rules, game_id):
     # _  O  _
     # X  _  X
 
-    board = abi.encode(STATE_TYPES, [[1, 0, 2, 0, 2, 0, 1, 0, 1], False, False])
+    board = encode_abi(STATE_TYPES, [[1, 0, 2, 0, 2, 0, 1, 0, 1], False, False])
     nonce = 5  # O moves next
     game_state = [game_id, nonce, board]
 
@@ -82,14 +82,14 @@ def test_is_valid_move(rules, game_id):
 
 
 def test_transition(rules, game_id):
-    empty_board = abi.encode(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
     nonce = 0
     game_state = [game_id, nonce, empty_board]
     for i in range(9):
         next_game_id, next_nonce, next_state = rules.transition(game_state, X, convert.to_bytes(i))
         assert next_game_id == game_id
         assert next_nonce == 1
-        next_board = abi.decode(STATE_TYPES, next_state)
+        next_board = decode_abi(STATE_TYPES, next_state)
         print(next_board)
         expected_next_board = [0] * 9
         expected_next_board[i] = 1
@@ -102,7 +102,7 @@ def test_transition(rules, game_id):
         next_game_id, next_nonce, next_state = rules.transition(game_state, O, convert.to_bytes(i))
         assert next_game_id == game_id
         assert next_nonce == 2
-        next_board = abi.decode(STATE_TYPES, next_state)
+        next_board = decode_abi(STATE_TYPES, next_state)
         print(next_board)
         expected_next_board = [0] * 9
         expected_next_board[i] = 2
