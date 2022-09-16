@@ -489,9 +489,6 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
         o_center_move,
         [signature_a, signature_b]
     ]
-    print(f"player_a: {player_a.address}")
-    print(f"player_b: {player_b.address}")
-    print(arbiter.publicGetSigners(signed_by_both_players_move))
 
     signed_x_winning_move = [
         x_winning_move,
