@@ -34,14 +34,6 @@ contract Arbiter is IGameJutsuArbiter {
     uint256 public DEFAULT_TIMEOUT_STAKE = 0.1 ether;
     uint256 public NUM_PLAYERS = 2;
 
-    struct Game {
-        IGameJutsuRules rules;
-        uint256 stake;
-        bool started;
-        bool finished;
-        mapping(address => uint8) players;
-        address[2] playersArray;
-    }
 
     struct Timeout {
         uint256 startTime;
@@ -57,13 +49,16 @@ contract Arbiter is IGameJutsuArbiter {
     event GamesStarted(uint256 gameId, uint256 stake, address[2] players);
     event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
     event PlayerDisqualified(uint256 gameId, address player);
+    // maybe
+    //    event PlayerResigned(uint256 gameId, address player);
+    event GameProposed(uint256 gameId, uint256 stake, address proposer);
+
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("GameJutsu")), keccak256("0.1"), 137, 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC, bytes32(0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d)));
     }
 
     //TODO private game proposal - after the hackathon
-    //TODO should gameId be in Game?
     function proposeGame(IGameJutsuRules rules) payable external returns (uint256 gameId) {
         gameId = nextGameId;
         games[gameId].rules = rules;
@@ -71,6 +66,7 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].playersArray[0] = msg.sender;
         games[gameId].stake = msg.value;
         nextGameId++;
+        emit GameProposed(gameId, msg.value, msg.sender);
     }
 
 
@@ -85,6 +81,10 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].started = true;
 
         emit GamesStarted(gameId, games[gameId].stake, games[gameId].playersArray);
+    }
+
+    function finishGame(SignedGameMove calldata signedMove) external {
+        //TODO
     }
 
     //TODO add dispute move version based on comparison to previously signed moves
@@ -102,6 +102,9 @@ contract Arbiter is IGameJutsuArbiter {
         disqualifyPlayer(gm.gameId, gm.player);
     }
 
+    function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external {
+        //TODO
+    }
 
     function recoverAddress(GameMove calldata gameMove, bytes calldata signature) public view returns (address){
         //        https://codesandbox.io/s/gamejutsu-moves-eip712-no-nested-types-p5fnzf?file=/src/index.js

@@ -21,6 +21,15 @@ import "./IGameJutsuRules.sol";
     @dev https://codesandbox.io/s/gamejutsu-moves-eip712-mvrh8v?file=/src/index.js
   */
 interface IGameJutsuArbiter {
+    struct Game {
+        IGameJutsuRules rules;
+        uint256 stake;
+        bool started;
+        bool finished;
+        mapping(address => uint8) players;
+        address[2] playersArray;
+    }
+
     struct GameMove {
         uint256 gameId;
         uint256 nonce;
@@ -40,6 +49,10 @@ interface IGameJutsuArbiter {
     function acceptGame(uint256 gameId) payable external;
 
     function disputeMove(SignedGameMove calldata signedMove) external;
+
+    function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external;
+
+    function finishGame(SignedGameMove calldata signedMove) external;
     //
     //    function initMoveTimeout(SignedMove calldata signedMove) payable external;
     //
@@ -47,5 +60,8 @@ interface IGameJutsuArbiter {
     //
     //    function finalizeTimeout(uint256 gameId) external;
     //
+
+    function games(uint256 gameId) external view returns (IGameJutsuRules rules, uint256 stake, bool started, bool finished);
+
     function getPlayers(uint256 gameId) external view returns (address[2] memory);
 }
