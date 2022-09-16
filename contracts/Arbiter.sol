@@ -90,6 +90,7 @@ contract Arbiter is IGameJutsuArbiter {
         uint256 gameId = signedMoves[0].gameMove.gameId;
         require(_isGameOn(gameId), "Arbiter: game not active");
         require(signedMoves[1].gameMove.gameId == gameId, "Arbiter: game ids mismatch");
+        require(signedMoves[1].gameMove.nonce == signedMoves[0].gameMove.nonce + 1, "Arbiter: nonce mismatch");
         require(_isValidGameMove(signedMoves[1].gameMove), "Arbiter: invalid game move");
         require(keccak256(signedMoves[0].gameMove.newState) == keccak256(signedMoves[1].gameMove.oldState), "Arbiter: game state mismatch");
 
