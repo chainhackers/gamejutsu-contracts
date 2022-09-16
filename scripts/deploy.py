@@ -1,3 +1,14 @@
+#   ________                           ____.       __
+#  /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+# /   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+# \    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+#  \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+#         \/     \/      \/     \/                          \/
+# https://gamejutsu.app
+# ETHOnline2022 submission by ChainHackers
+__author__ = ["Gene A. Tsvigun"]
+__license__ = "MIT"
+
 from brownie import Arbiter, TicTacToeRules, accounts
 
 

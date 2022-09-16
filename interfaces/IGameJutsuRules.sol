@@ -28,4 +28,8 @@ interface IGameJutsuRules {
     function transition(GameState calldata state, uint8 playerId, bytes calldata move) external pure returns (GameState memory);
 
     function defaultInitialGameState() external pure returns (bytes memory);
+
+    function isFinal(GameState calldata state) external pure returns (bool);
+
+    function isWin(GameState calldata state, uint8 playerId) external pure returns (bool);
 }

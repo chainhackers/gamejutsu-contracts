@@ -1,6 +1,17 @@
+#   ________                           ____.       __
+#  /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+# /   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+# \    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+#  \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+#         \/     \/      \/     \/                          \/
+# https://gamejutsu.app
+# ETHOnline2022 submission by ChainHackers
+__authors__ = ["Gene A. Tsvigun", "Vic G. Larson"]
+__license__ = "MIT"
+
 import pytest
 from brownie import reverts, interface, Wei
-from eth_abi import encode_abi, decode_abi
+from eth_abi import encode_abi
 from eth_account.messages import SignableMessage
 from brownie.convert import to_bytes
 
@@ -419,3 +430,106 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
 
     with reverts():
         arbiter.disputeMove(valid_signed_game_move2, {'from': player_a.address})
+
+
+def test_finish_game(arbiter, rules, start_game, player_a, player_b):
+    stake = Wei('0.1 ether')
+    tx = arbiter.proposeGame(rules, {'value': stake, 'from': player_a.address})
+    game_id = tx.return_value
+    assert 'GameProposed' in tx.events
+    assert tx.events['GameProposed']['gameId'] == game_id
+
+    o_about_to_play_in_the_center_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 0, 0, 0, 0, 0], False, False])
+    o_center_move_data = to_bytes("0x04")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │ . │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    x_almost_won_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
+    nonce = 4
+    x_won_board = encode_abi(STATE_TYPES, [[1, 1, 1, 2, 2, 0, 0, 0, 0], True, False])
+    x_winning_move_data = to_bytes("0x02")
+    x_non_winning_move_data = to_bytes("0x08")
+    x_not_won_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 1], False, False])
+
+    o_center_move = [
+        game_id,
+        3,
+        player_b.address,
+        o_about_to_play_in_the_center_board,
+        x_almost_won_board,
+        o_center_move_data
+    ]
+    x_winning_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        x_almost_won_board,
+        x_won_board,
+        x_winning_move_data
+    ]
+    x_non_winning_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        x_almost_won_board,
+        x_not_won_board,
+        x_non_winning_move_data
+    ]
+
+    encoded_o_center_move = encode_move(*o_center_move)
+    signature_a = player_a.sign_message(encoded_o_center_move).signature
+    signature_b = player_b.sign_message(encoded_o_center_move).signature
+    signed_by_both_players_move = [
+        o_center_move,
+        [signature_a, signature_b]
+    ]
+    print(f"player_a: {player_a.address}")
+    print(f"player_b: {player_b.address}")
+    print(arbiter.publicGetSigners(signed_by_both_players_move))
+
+    signed_x_winning_move = [
+        x_winning_move,
+        [player_a.sign_message(encode_move(*x_winning_move)).signature]
+    ]
+    signed_x_non_winning_move = [
+        x_non_winning_move,
+        [player_a.sign_message(encode_move(*x_non_winning_move)).signature]
+    ]
+
+    with reverts():
+        arbiter.finishGame(
+            [signed_by_both_players_move, signed_x_winning_move],
+            {'from': player_a.address}
+        )
+
+    arbiter.acceptGame(game_id, {'value': stake, 'from': player_b.address})
+    rules, stake, started, finished = arbiter.games(game_id)
+    assert started
+    assert not finished
+
+    with reverts():
+        arbiter.finishGame(
+            [signed_by_both_players_move, signed_x_non_winning_move],
+            {'from': player_a.address}
+        )
+
+    tx = arbiter.finishGame(
+        [signed_by_both_players_move, signed_x_winning_move],
+        {'from': player_a.address}
+    )
+    assert 'GameFinished' in tx.events
+    e = tx.events['GameFinished']
+    assert e['gameId'] == game_id
+    assert e['winner'] == player_a.address
+    assert e['loser'] == player_b.address
+    assert not e['isDraw']
+    assert 'PlayerDisqualified' not in tx.events
+
+    rules, stake, started, finished = arbiter.games(game_id)
+    assert finished

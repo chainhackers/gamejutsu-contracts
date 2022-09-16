@@ -52,7 +52,7 @@ interface IGameJutsuArbiter {
 
     function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external;
 
-    function finishGame(SignedGameMove calldata signedMove) external;
+    function finishGame(SignedGameMove[] calldata signedMoves) external returns (address winner);
     //
     //    function initMoveTimeout(SignedMove calldata signedMove) payable external;
     //

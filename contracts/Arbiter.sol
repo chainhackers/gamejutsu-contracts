@@ -83,8 +83,30 @@ contract Arbiter is IGameJutsuArbiter {
         emit GamesStarted(gameId, games[gameId].stake, games[gameId].playersArray);
     }
 
-    function finishGame(SignedGameMove calldata signedMove) external {
-        //TODO
+    function finishGame(SignedGameMove[] calldata signedMoves) external returns (address winner){
+        require(_isSignedByAllPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
+        address signer = recoverAddress(signedMoves[1].gameMove, signedMoves[1].signatures[0]);
+        require(signer == signedMoves[1].gameMove.player, "Arbiter: first signature must belong to the player making the move");
+
+        uint256 gameId = signedMoves[0].gameMove.gameId;
+        require(_isGameOn(gameId), "Arbiter: game not active");
+        require(signedMoves[1].gameMove.gameId == gameId, "Arbiter: game ids mismatch");
+        require(_isValidGameMove(signedMoves[1].gameMove), "Arbiter: invalid game move");
+        require(keccak256(signedMoves[0].gameMove.newState) == keccak256(signedMoves[1].gameMove.oldState), "Arbiter: game state mismatch");
+
+        IGameJutsuRules.GameState memory newState = IGameJutsuRules.GameState(gameId, signedMoves[1].gameMove.nonce + 1, signedMoves[1].gameMove.newState);
+        IGameJutsuRules rules = games[gameId].rules;
+        require(rules.isFinal(newState), "Arbiter: game state not final");
+        for (uint8 i = 0; i < NUM_PLAYERS; i++) {
+            if (rules.isWin(newState, i)) {
+                address winner = games[gameId].playersArray[i];
+                address loser = games[gameId].playersArray[1 - i];
+                _finishGame(gameId, winner, loser, false);
+                return winner;
+            }
+        }
+        _finishGame(gameId, address(0), address(0), true);
+        return address(0);
     }
 
     //TODO add dispute move version based on comparison to previously signed moves
@@ -220,12 +242,45 @@ contract Arbiter is IGameJutsuArbiter {
         return a.gameId == b.gameId && a.nonce == b.nonce && keccak256(a.state) == keccak256(b.state);
     }
 
-    function getSigners(SignedGameMove calldata signedMove) private pure returns (address[] memory) {//TODO lib
+    function publicGetSigners(SignedGameMove calldata signedMove) external view returns (address[] memory) {
+        return getSigners(signedMove);
+    }
+
+    function getSigners(SignedGameMove calldata signedMove) private view returns (address[] memory) {//TODO lib
         address[] memory signers = new address[](signedMove.signatures.length);
         for (uint256 i = 0; i < signedMove.signatures.length; i++) {
-            bytes32 signedHash = ECDSA.toEthSignedMessageHash(abi.encode(signedMove.gameMove.oldState, signedMove.gameMove.newState, signedMove.gameMove.move));
-            signers[i] = ECDSA.recover(signedHash, signedMove.signatures[i]);
+            signers[i] = recoverAddress(signedMove.gameMove, signedMove.signatures[i]);
         }
         return signers;
+    }
+
+    function _isGameOn(uint256 gameId) private view returns (bool) {
+        return games[gameId].started && !games[gameId].finished;
+    }
+
+    function _isSignedByAllPlayers(SignedGameMove calldata signedMove) private view returns (bool) {
+        address[] memory signers = getSigners(signedMove);
+        if (signers.length != NUM_PLAYERS) {
+            return false;
+        }
+        for (uint256 i = 0; i < signers.length; i++) {
+            if (games[signedMove.gameMove.gameId].players[signers[i]] == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function _finishGame(uint256 gameId, address winner, address loser, bool draw) private {
+        games[gameId].finished = true;
+        if (draw) {
+            uint256 half = games[gameId].stake / 2;
+            uint256 theOtherHalf = games[gameId].stake - half;
+            payable(games[gameId].playersArray[0]).transfer(half);
+            payable(games[gameId].playersArray[1]).transfer(theOtherHalf);
+        } else {
+            payable(winner).transfer(games[gameId].stake);
+        }
+        emit GameFinished(gameId, winner, loser, draw);
     }
 }
