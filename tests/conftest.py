@@ -1,7 +1,18 @@
+#   ________                           ____.       __
+#  /  _____/_____    _____   ____     |    |__ ___/  |_  ________ __
+# /   \  ___\__  \  /     \_/ __ \    |    |  |  \   __\/  ___/  |  \
+# \    \_\  \/ __ \|  Y Y  \  ___//\__|    |  |  /|  |  \___ \|  |  /
+#  \______  (____  /__|_|  /\___  >________|____/ |__| /____  >____/
+#         \/     \/      \/     \/                          \/
+# https://gamejutsu.app
+# ETHOnline2022 submission by ChainHackers
+__author__ = ["Gene A. Tsvigun"]
+__license__ = "MIT"
+
 import pytest
 
 from eth_account import Account
-from brownie.network.gas.strategies import GasNowScalingStrategy
+
 
 @pytest.fixture(scope="module")
 def dev(accounts):
