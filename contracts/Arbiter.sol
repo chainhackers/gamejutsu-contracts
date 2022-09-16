@@ -49,8 +49,7 @@ contract Arbiter is IGameJutsuArbiter {
     event GamesStarted(uint256 gameId, uint256 stake, address[2] players);
     event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
     event PlayerDisqualified(uint256 gameId, address player);
-    // maybe
-    //    event PlayerResigned(uint256 gameId, address player);
+    event PlayerResigned(uint256 gameId, address player);
     event GameProposed(uint256 gameId, uint256 stake, address proposer);
 
 
@@ -107,6 +106,16 @@ contract Arbiter is IGameJutsuArbiter {
         }
         _finishGame(gameId, address(0), address(0), true);
         return address(0);
+    }
+
+    function resign(uint256 gameId) external {
+        require(_isGameOn(gameId), "Arbiter: game not active");
+        require(games[gameId].players[msg.sender] != 0, "Arbiter: player not in game");
+        uint8 playerIndex = games[gameId].players[msg.sender] - 1;
+        address winner = games[gameId].playersArray[1 - playerIndex];
+        address loser = games[gameId].playersArray[playerIndex];
+        _finishGame(gameId, winner, loser, false);
+        emit PlayerResigned(gameId, msg.sender);
     }
 
     //TODO add dispute move version based on comparison to previously signed moves

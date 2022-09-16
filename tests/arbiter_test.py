@@ -533,3 +533,20 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
 
     rules, stake, started, finished = arbiter.games(game_id)
     assert finished
+
+
+def test_resign(arbiter, rules, start_game, player_a, player_b):
+    game_id = start_game(
+        player_a.address,
+        player_b.address,
+        Wei('0.1 ether')
+    )
+
+    tx = arbiter.resign(game_id, {'from': player_a.address})
+    assert 'PlayerResigned' in tx.events
+    e = tx.events['PlayerResigned']
+    assert e['gameId'] == game_id
+    assert e['player'] == player_a.address
+
+    rules, stake, started, finished = arbiter.games(game_id)
+    assert finished
