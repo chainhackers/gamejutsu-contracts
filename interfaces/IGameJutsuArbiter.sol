@@ -44,6 +44,13 @@ interface IGameJutsuArbiter {
         bytes[] signatures;
     }
 
+    event GameStarted(uint256 gameId, uint256 stake, address[2] players);
+    event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
+    event PlayerDisqualified(uint256 gameId, address player);
+    event PlayerResigned(uint256 gameId, address player);
+    event GameProposed(uint256 gameId, uint256 stake, address proposer);
+    event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
+
     function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId);
 
     function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external;
