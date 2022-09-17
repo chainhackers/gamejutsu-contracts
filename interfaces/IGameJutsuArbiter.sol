@@ -56,13 +56,11 @@ interface IGameJutsuArbiter {
 
     function resign(uint256 gameId) external;
 
-    //
-    //    function initMoveTimeout(SignedMove calldata signedMove) payable external;
-    //
-    //    function resolveTimeout(SignedMove calldata signedMove) external;
-    //
-    //    function finalizeTimeout(uint256 gameId) external;
-    //
+    function initTimeout(SignedGameMove[2] calldata signedMoves) payable external;
+
+    function resolveTimeout(SignedGameMove calldata signedMove) external;
+
+    function finalizeTimeout(uint256 gameId) external;
 
     function games(uint256 gameId) external view returns (IGameJutsuRules rules, uint256 stake, bool started, bool finished);
 

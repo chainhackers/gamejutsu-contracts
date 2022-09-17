@@ -163,29 +163,10 @@ contract Arbiter is IGameJutsuArbiter {
 
 
     /**
-@notice only can be used for moved signed by both players
-           TODO add a way to init timeout with only one signature
+        @notice first move must be signed by both players
        */
-    function initMoveTimeout(SignedGameMove calldata signedMove) payable external {
-        require(signedMove.signatures.length == 2, "Arbiter: no signatures");
-
-        uint256 gameId = signedMove.gameMove.gameId;
-        for (uint256 i = 0; i < NUM_PLAYERS; i++) {
-            bytes32 signedHash = ECDSA.toEthSignedMessageHash(abi.encode(signedMove.gameMove.oldState, signedMove.gameMove.newState, signedMove.gameMove.move));
-            //TODO move to lib
-            address signer = ECDSA.recover(signedHash, signedMove.signatures[i]);
-            require(games[gameId].players[signer] != 0, "Arbiter: signer not in game");
-        }
-
-        //TODO extract common code to modifiers
-        require(games[signedMove.gameMove.gameId].started && !games[signedMove.gameMove.gameId].finished, "Arbiter: game not started or finished");
-        require(_isValidGameMove(signedMove.gameMove), "Arbiter: invalid signed move");
-        require(msg.value >= DEFAULT_TIMEOUT_STAKE, "Arbiter: stake mismatch");
-        require(timeouts[signedMove.gameMove.gameId].startTime == 0, "Arbiter: timeout already started");
-
-        timeouts[gameId].startTime = block.timestamp;
-        timeouts[gameId].signedMove = signedMove;
-        timeouts[gameId].stake = msg.value;
+    function initMoveTimeout(SignedGameMove[2] calldata signedMove) payable external {
+//    TODO
     }
 
     function resolveTimeout(SignedGameMove calldata signedMove) external {
@@ -292,5 +273,16 @@ contract Arbiter is IGameJutsuArbiter {
             payable(winner).transfer(games[gameId].stake);
         }
         emit GameFinished(gameId, winner, loser, draw);
+    }
+
+    modifier firstMoveSignedByAll(SignedGameMove[2] calldata signedMoves) {
+        require(_isSignedByAllPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
+        _;
+    }
+
+    modifier lastMoveSignedByMover(SignedGameMove[2] calldata signedMoves) {
+        address signer = recoverAddress(signedMoves[1].gameMove, signedMoves[1].signatures[0]);
+        require(signer == signedMoves[1].gameMove.player, "Arbiter: first signature must belong to the player making the move");
+        _;
     }
 }
