@@ -55,7 +55,7 @@ STATE_TYPES = ["uint8[9]", "bool", "bool"]
 
 
 def test_propose_game(arbiter, rules, player_a, player_b):
-    tx = arbiter.proposeGame(rules, {'value': 0, 'from': player_a.address})
+    tx = arbiter.proposeGame(rules, [], {'value': 0, 'from': player_a.address})
     assert tx.return_value == 0
     game_rules, game_stake, game_started, game_finished = arbiter.games(0)
     assert game_rules == rules
@@ -64,7 +64,7 @@ def test_propose_game(arbiter, rules, player_a, player_b):
     assert not game_finished
     assert arbiter.getPlayers(0) == [player_a.address, ZERO_ADDRESS]
 
-    tx = arbiter.proposeGame(rules, {'value': Wei("1 ether"), 'from': player_b.address})
+    tx = arbiter.proposeGame(rules, [], {'value': Wei("1 ether"), 'from': player_b.address})
     assert tx.return_value == 1
     game_rules, game_stake, game_started, game_finished = arbiter.games(1)
     assert game_rules == rules
@@ -76,10 +76,11 @@ def test_propose_game(arbiter, rules, player_a, player_b):
 
 def test_accept_game(arbiter, rules, player_a, player_b):
     stake = Wei("0.1 ether")
-    arbiter.proposeGame(rules, {'value': stake, 'from': player_a.address})
+    tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a.address})
+    game_id = tx.return_value
     with reverts("Arbiter: stake mismatch"):
-        arbiter.acceptGame(0, {'from': player_b.address})
-    arbiter.acceptGame(0, {'value': stake, 'from': player_b.address})
+        arbiter.acceptGame(game_id, [], {'from': player_b.address})
+    arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b.address})
     game_rules, game_stake, game_started, game_finished = arbiter.games(0)
     assert game_rules == rules
     assert game_stake == "0.2 ether"
@@ -92,9 +93,9 @@ def test_accept_game(arbiter, rules, player_a, player_b):
 def start_game(arbiter, rules):
     def start_it(player_a, player_b, stake):
         stake_wei = Wei(f"{stake} ether")
-        tx = arbiter.proposeGame(rules, {'value': stake, 'from': player_a})
+        tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a})
         game_id = tx.return_value
-        arbiter.acceptGame(game_id, {'value': stake, 'from': player_b})
+        arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b})
         return game_id
 
     return start_it
@@ -434,7 +435,7 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
 
 def test_finish_game(arbiter, rules, start_game, player_a, player_b):
     stake = Wei('0.1 ether')
-    tx = arbiter.proposeGame(rules, {'value': stake, 'from': player_a.address})
+    tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a.address})
     game_id = tx.return_value
     assert 'GameProposed' in tx.events
     assert tx.events['GameProposed']['gameId'] == game_id
@@ -505,7 +506,7 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
             {'from': player_a.address}
         )
 
-    arbiter.acceptGame(game_id, {'value': stake, 'from': player_b.address})
+    arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b.address})
     rules, stake, started, finished = arbiter.games(game_id)
     assert started
     assert not finished

@@ -44,9 +44,11 @@ interface IGameJutsuArbiter {
         bytes[] signatures;
     }
 
-    function proposeGame(IGameJutsuRules rules) payable external returns (uint256 gameId);
+    function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId);
 
-    function acceptGame(uint256 gameId) payable external;
+    function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external;
+
+    function registerSessionAddress(uint256 gameId, address sessionAddress) external;
 
     function disputeMove(SignedGameMove calldata signedMove) external;
 

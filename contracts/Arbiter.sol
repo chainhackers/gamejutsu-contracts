@@ -51,14 +51,14 @@ contract Arbiter is IGameJutsuArbiter {
     event PlayerDisqualified(uint256 gameId, address player);
     event PlayerResigned(uint256 gameId, address player);
     event GameProposed(uint256 gameId, uint256 stake, address proposer);
-
+    event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
 
     constructor() {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("GameJutsu")), keccak256("0.1"), 137, 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC, bytes32(0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d)));
     }
 
     //TODO private game proposal - after the hackathon
-    function proposeGame(IGameJutsuRules rules) payable external returns (uint256 gameId) {
+    function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId) {
         gameId = nextGameId;
         games[gameId].rules = rules;
         games[gameId].players[msg.sender] = 1;
@@ -66,10 +66,15 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].stake = msg.value;
         nextGameId++;
         emit GameProposed(gameId, msg.value, msg.sender);
+        if (sessionAddresses.length > 0) {
+            for (uint256 i = 0; i < sessionAddresses.length; i++) {
+                _registerSessionAddress(gameId, msg.sender, sessionAddresses[i]);
+            }
+        }
     }
 
 
-    function acceptGame(uint256 gameId) payable external {
+    function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external {
         require(games[gameId].players[msg.sender] == 0, "Arbiter: player already in game");
         require(games[gameId].started == false, "Arbiter: game already started");
         require(games[gameId].playersArray[0] != address(0), "Arbiter: game not proposed");
@@ -80,6 +85,17 @@ contract Arbiter is IGameJutsuArbiter {
         games[gameId].started = true;
 
         emit GamesStarted(gameId, games[gameId].stake, games[gameId].playersArray);
+        if (sessionAddresses.length > 0) {
+            for (uint256 i = 0; i < sessionAddresses.length; i++) {
+                _registerSessionAddress(gameId, msg.sender, sessionAddresses[i]);
+            }
+        }
+    }
+
+    function registerSessionAddress(uint256 gameId, address sessionAddress) external {
+        require(games[gameId].players[msg.sender] > 0, "Arbiter: player not in game");
+        require(games[gameId].started == true, "Arbiter: game not started");
+        _registerSessionAddress(gameId, msg.sender, sessionAddress);
     }
 
     function finishGame(SignedGameMove[] calldata signedMoves) external returns (address winner){
@@ -163,10 +179,10 @@ contract Arbiter is IGameJutsuArbiter {
 
 
     /**
-        @notice first move must be signed by both players
+    @notice first move must be signed by both players
        */
-    function initMoveTimeout(SignedGameMove[2] calldata signedMove) payable external {
-//    TODO
+    function initTimeout(SignedGameMove[2] calldata signedMove) payable external {
+        //    TODO
     }
 
     function resolveTimeout(SignedGameMove calldata signedMove) external {
@@ -203,7 +219,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     /**
-        @dev checks only state transition validity, all the signatures are checked elsewhere
+    @dev checks only state transition validity, all the signatures are checked elsewhere
     */
     function _isValidGameMove(GameMove calldata move) private view returns (bool) {
         Game storage game = games[move.gameId];
@@ -273,6 +289,11 @@ contract Arbiter is IGameJutsuArbiter {
             payable(winner).transfer(games[gameId].stake);
         }
         emit GameFinished(gameId, winner, loser, draw);
+    }
+
+    function _registerSessionAddress(uint256 gameId, address player, address sessionAddress) private {
+        games[gameId].players[sessionAddress] = games[gameId].players[player];
+        emit SessionAddressRegistered(gameId, player, sessionAddress);
     }
 
     modifier firstMoveSignedByAll(SignedGameMove[2] calldata signedMoves) {
