@@ -50,6 +50,7 @@ interface IGameJutsuArbiter {
     event PlayerResigned(uint256 gameId, address player);
     event GameProposed(uint256 gameId, uint256 stake, address proposer);
     event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
+    event TimeoutStarted(uint256 gameId, address player, uint256 nonce, uint256 timeout);
 
     function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId);
 
@@ -61,7 +62,7 @@ interface IGameJutsuArbiter {
 
     function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external;
 
-    function finishGame(SignedGameMove[] calldata signedMoves) external returns (address winner);
+    function finishGame(SignedGameMove[2] calldata signedMoves) external returns (address winner);
 
     function resign(uint256 gameId) external;
 
