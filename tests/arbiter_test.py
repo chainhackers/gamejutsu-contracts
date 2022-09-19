@@ -18,6 +18,7 @@ from brownie.convert import to_bytes
 from eth_account.messages import encode_structured_data
 from eth_typing import ChecksumAddress
 from brownie.network.account import PublicKeyAccount
+from brownie import chain
 
 ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -548,3 +549,258 @@ def test_resign(arbiter, rules, start_game, player_a, player_b):
 
     rules, stake, started, finished = arbiter.games(game_id)
     assert finished
+
+
+def test_timeout(arbiter, rules, start_game, player_a, player_b):
+    game_id = start_game(
+        player_a.address,
+        player_b.address,
+        Wei('0.1 ether')
+    )
+
+    # ╭───┬───┬───╮
+    # │ X │   │   │
+    # ├───┼───┼───┤
+    # │ 0 │   │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    two_moves_board = encode_abi(STATE_TYPES, [[1, 0, 0, 2, 0, 0, 0, 0, 0], False, False])
+    x_1_move_data = to_bytes("0x01")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │   │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    three_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 0, 0, 0, 0, 0], False, False])
+    o_center_move_data = to_bytes("0x04")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    four_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
+
+    x_1_move = [
+        game_id,
+        2,
+        player_a.address,
+        two_moves_board,
+        three_moves_board,
+        x_1_move_data,
+    ]
+    o_center_move = [
+        game_id,
+        3,
+        player_b.address,
+        three_moves_board,
+        four_moves_board,
+        o_center_move_data,
+    ]
+
+    encoded_x_1_move = encode_move(*x_1_move)
+    signed_x_1_move = [
+        x_1_move,
+        [
+            player_a.sign_message(encoded_x_1_move).signature,
+            player_b.sign_message(encoded_x_1_move).signature
+        ]
+    ]
+
+    encoded_o_center_move = encode_move(*o_center_move)
+    signed_o_center_move = [
+        o_center_move,
+        [
+            player_b.sign_message(encoded_o_center_move).signature,
+            player_a.sign_message(encoded_o_center_move).signature
+        ]
+    ]
+
+    with reverts():
+        arbiter.initTimeout([signed_x_1_move, signed_o_center_move],
+                            {'from': player_b.address})
+
+    tx = arbiter.initTimeout([signed_x_1_move, signed_o_center_move],
+                             {'value': arbiter.DEFAULT_TIMEOUT_STAKE(), 'from': player_b.address})
+    ts = chain.time()
+    assert 'TimeoutStarted' in tx.events
+    e = tx.events['TimeoutStarted']
+    assert e['gameId'] == game_id
+    assert e['player'] == player_b.address
+    assert e['nonce'] == 3
+    assert e['timeout'] == ts + arbiter.TIMEOUT()
+    assert arbiter.timeouts(game_id)[0] == ts
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │   │ X │
+    # ╰───┴───┴───╯
+
+    five_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 1], False, False])
+    x_8_move_data = to_bytes("0x08")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │ 0 │ X │
+    # ╰───┴───┴───╯
+    six_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 2, 1], False, False])
+    o_7_move_data = to_bytes("0x07")
+
+    x_8_move = [
+        game_id,
+        4,
+        player_a.address,
+        four_moves_board,
+        five_moves_board,
+        x_8_move_data,
+    ]
+    assert (arbiter.isValidGameMove(x_8_move))
+    encoded_x_8_move = encode_move(*x_8_move)
+    signed_x_8_move = [
+        x_8_move,
+        [
+            player_a.sign_message(encoded_x_8_move).signature,
+        ]
+    ]
+    assert (arbiter.isValidSignedMove(signed_x_8_move))
+
+    o_7_move = [
+        game_id,
+        5,
+        player_b.address,
+        five_moves_board,
+        six_moves_board,
+        o_7_move_data
+    ]
+    assert (arbiter.isValidGameMove(o_7_move))
+    encoded_o_7_move = encode_move(*o_7_move)
+    signed_o_7_move = [
+        o_7_move,
+        [
+            player_b.sign_message(encoded_o_7_move).signature,
+        ]
+    ]
+    assert (arbiter.isValidSignedMove(signed_o_7_move))
+
+    with reverts():
+        arbiter.resolveTimeout(signed_o_7_move, {'from': player_b.address})
+    with reverts():
+        arbiter.resolveTimeout(signed_o_7_move, {'from': player_a.address})
+
+    balance_b_before_timeout_resolution = balance(player_b)
+    tx = arbiter.resolveTimeout(signed_x_8_move, {'from': player_a.address})
+    assert 'TimeoutResolved' in tx.events
+    e = tx.events['TimeoutResolved']
+    assert e['gameId'] == game_id
+    assert e['player'] == player_a.address
+    assert e['nonce'] == 4
+    assert balance(player_b) == balance_b_before_timeout_resolution + arbiter.DEFAULT_TIMEOUT_STAKE()
+
+
+def test_finalize_timeout(arbiter, rules, start_game, player_a, player_b):
+    game_id = start_game(
+        player_a.address,
+        player_b.address,
+        Wei('0.1 ether')
+    )
+
+    # ╭───┬───┬───╮
+    # │ X │   │   │
+    # ├───┼───┼───┤
+    # │ 0 │   │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    two_moves_board = encode_abi(STATE_TYPES, [[1, 0, 0, 2, 0, 0, 0, 0, 0], False, False])
+    x_1_move_data = to_bytes("0x01")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │   │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    three_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 0, 0, 0, 0, 0], False, False])
+    o_center_move_data = to_bytes("0x04")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │   │   │
+    # ╰───┴───┴───╯
+
+    four_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
+
+    x_1_move = [
+        game_id,
+        2,
+        player_a.address,
+        two_moves_board,
+        three_moves_board,
+        x_1_move_data,
+    ]
+
+    o_center_move = [
+        game_id,
+        3,
+        player_b.address,
+        three_moves_board,
+        four_moves_board,
+        o_center_move_data,
+    ]
+
+    encoded_x_1_move = encode_move(*x_1_move)
+    signed_x_1_move = [
+        x_1_move,
+        [
+            player_a.sign_message(encoded_x_1_move).signature,
+            player_b.sign_message(encoded_x_1_move).signature
+        ]
+    ]
+
+    encoded_o_center_move = encode_move(*o_center_move)
+    signed_o_center_move = [
+        o_center_move,
+        [
+            player_b.sign_message(encoded_o_center_move).signature,
+        ]
+    ]
+
+    arbiter.initTimeout([signed_x_1_move, signed_o_center_move],
+                        {'value': arbiter.DEFAULT_TIMEOUT_STAKE(), 'from': player_b.address})
+
+    with reverts():
+        arbiter.finalizeTimeout(game_id, {'from': player_b.address})
+
+    with reverts():
+        arbiter.finalizeTimeout(game_id, {'from': player_a.address})
+
+    chain.sleep(arbiter.DEFAULT_TIMEOUT() + 1)
+
+    tx = arbiter.finalizeTimeout(game_id, {'from': player_b.address})
+    assert 'GameFinished' in tx.events
+    e = tx.events['GameFinished']
+    assert e['gameId'] == game_id
+    assert e['winner'] == player_b.address
+    assert e['loser'] == player_a.address
+    assert not e['isDraw']
