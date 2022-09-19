@@ -111,7 +111,7 @@ contract Arbiter is IGameJutsuArbiter {
         for (uint8 i = 0; i < NUM_PLAYERS; i++) {
             if (rules.isWin(newState, i)) {
                 winner = games[gameId].playersArray[i];
-                address loser = games[gameId].playersArray[1 - i];
+                address loser = _opponent(gameId, winner);
                 _finishGame(gameId, winner, loser, false);
                 return winner;
             }
@@ -123,11 +123,10 @@ contract Arbiter is IGameJutsuArbiter {
     function resign(uint256 gameId) external {
         require(_isGameOn(gameId), "Arbiter: game not active");
         require(games[gameId].players[msg.sender] != 0, "Arbiter: player not in game");
-        uint8 playerIndex = games[gameId].players[msg.sender] - 1;
-        address winner = games[gameId].playersArray[1 - playerIndex];
-        address loser = games[gameId].playersArray[playerIndex];
+        address loser = msg.sender;
+        address winner = _opponent(gameId, loser);
         _finishGame(gameId, winner, loser, false);
-        emit PlayerResigned(gameId, msg.sender);
+        emit PlayerResigned(gameId, loser);
     }
 
     //TODO add dispute move version based on comparison to previously signed moves
@@ -207,15 +206,24 @@ contract Arbiter is IGameJutsuArbiter {
         emit TimeoutResolved(gameId, signedMove.gameMove.player, signedMove.gameMove.nonce);
     }
 
-    function finalizeTimeout(uint256 gameId) external {
-        require(timeouts[gameId].startTime != 0, "Arbiter: timeout not started");
-        require(timeouts[gameId].startTime + DEFAULT_TIMEOUT < block.timestamp, "Arbiter: timeout not expired");
-
-        //TODO disqualify the faulty player, end the game, send stake to the winner
+    /**
+        @notice the timeout must be expired
+        @notice 2 player games only
+       */
+    function finalizeTimeout(uint256 gameId) external
+    timeoutExpired(gameId)
+    {
+        address loser = _opponent(gameId, timeouts[gameId].gameMove.player);
+        disqualifyPlayer(gameId, loser);
+        delete timeouts[gameId];
     }
 
     function getPlayers(uint256 gameId) external view returns (address[2] memory){
         return games[gameId].playersArray;
+    }
+
+    function _opponent(uint256 gameId, address player) private view returns (address){
+        return games[gameId].playersArray[2 - games[gameId].players[player]];
     }
 
     /**
@@ -327,7 +335,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function _timeoutExpired(uint256 gameId) private view returns (bool) {
-        return timeouts[gameId].startTime + TIMEOUT < block.timestamp;
+        return _timeoutStarted(gameId) && timeouts[gameId].startTime + TIMEOUT < block.timestamp;
     }
 
     function _allValidGameMoves(SignedGameMove[2] calldata moves) private view returns (bool) {
