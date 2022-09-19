@@ -590,12 +590,6 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
 
     four_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
 
-    # nonce = 4
-    # x_won_board = encode_abi(STATE_TYPES, [[1, 1, 1, 2, 2, 0, 0, 0, 0], True, False])
-    # x_winning_move_data = to_bytes("0x02")
-    # x_non_winning_move_data = to_bytes("0x08")
-    # x_not_won_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 1], False, False])
-
     x_1_move = [
         game_id,
         2,
@@ -644,3 +638,75 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
     assert e['player'] == player_b.address
     assert e['nonce'] == 3
     assert e['timeout'] == chain.time() + arbiter.TIMEOUT()
+    assert arbiter.timeouts(game_id)[0] == chain.time()
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │   │ X │
+    # ╰───┴───┴───╯
+
+    five_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 1], False, False])
+    x_8_move_data = to_bytes("0x08")
+
+    # ╭───┬───┬───╮
+    # │ X │ X │   │
+    # ├───┼───┼───┤
+    # │ 0 │ 0 │   │
+    # ├───┼───┼───┤
+    # │   │ 0 │ X │
+    # ╰───┴───┴───╯
+    six_moves_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 2, 1], False, False])
+    o_7_move_data = to_bytes("0x07")
+
+    x_8_move = [
+        game_id,
+        4,
+        player_a.address,
+        four_moves_board,
+        five_moves_board,
+        x_8_move_data,
+    ]
+    assert (arbiter.isValidGameMove(x_8_move))
+    encoded_x_8_move = encode_move(*x_8_move)
+    signed_x_8_move = [
+        x_8_move,
+        [
+            player_a.sign_message(encoded_x_8_move).signature,
+        ]
+    ]
+    assert (arbiter.isValidSignedMove(signed_x_8_move))
+
+    o_7_move = [
+        game_id,
+        5,
+        player_b.address,
+        five_moves_board,
+        six_moves_board,
+        o_7_move_data
+    ]
+    assert (arbiter.isValidGameMove(o_7_move))
+    encoded_o_7_move = encode_move(*o_7_move)
+    signed_o_7_move = [
+        o_7_move,
+        [
+            player_b.sign_message(encoded_o_7_move).signature,
+        ]
+    ]
+    assert (arbiter.isValidSignedMove(signed_o_7_move))
+
+    with reverts():
+        arbiter.resolveTimeout(signed_o_7_move, {'from': player_b.address})
+    with reverts():
+        arbiter.resolveTimeout(signed_o_7_move, {'from': player_a.address})
+
+    balance_b_before_timeout_resolution = balance(player_b)
+    tx = arbiter.resolveTimeout(signed_x_8_move, {'from': player_a.address})
+    assert 'TimeoutResolved' in tx.events
+    e = tx.events['TimeoutResolved']
+    assert e['gameId'] == game_id
+    assert e['player'] == player_a.address
+    assert e['nonce'] == 4
+    assert balance(player_b) == balance_b_before_timeout_resolution + arbiter.DEFAULT_TIMEOUT_STAKE()

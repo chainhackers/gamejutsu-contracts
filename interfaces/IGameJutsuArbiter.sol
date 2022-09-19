@@ -51,6 +51,7 @@ interface IGameJutsuArbiter {
     event GameProposed(uint256 gameId, uint256 stake, address proposer);
     event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
     event TimeoutStarted(uint256 gameId, address player, uint256 nonce, uint256 timeout);
+    event TimeoutResolved(uint256 gameId, address player, uint256 nonce);
 
     function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId);
 
@@ -72,7 +73,13 @@ interface IGameJutsuArbiter {
 
     function finalizeTimeout(uint256 gameId) external;
 
+    //TODO penalize griefers for starting timeouts despite valid moves being published, needs timing in SignedGameMove
+
     function games(uint256 gameId) external view returns (IGameJutsuRules rules, uint256 stake, bool started, bool finished);
 
     function getPlayers(uint256 gameId) external view returns (address[2] memory);
+
+    function isValidGameMove(GameMove calldata gameMove) external view returns (bool);
+
+    function isValidSignedMove(SignedGameMove calldata signedMove) external view returns (bool);
 }

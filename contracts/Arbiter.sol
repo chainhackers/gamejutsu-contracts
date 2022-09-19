@@ -11,6 +11,7 @@ https://gamejutsu.app
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/utils/cryptography/ECDSA.sol";
+import "@openzeppelin/utils/Address.sol";
 import "../interfaces/IGameJutsuRules.sol";
 import "../interfaces/IGameJutsuArbiter.sol";
 
@@ -164,7 +165,10 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     /**
-    @notice first move must be signed by both players
+        @notice both moves must be in sequence
+        @notice first move must be signed by both players
+        @notice second move must be signed at least by the player making the move
+        @notice no timeout should be active for the game
        */
     function initTimeout(SignedGameMove[2] calldata moves) payable external
     firstMoveSignedByAll(moves)
@@ -177,11 +181,30 @@ contract Arbiter is IGameJutsuArbiter {
         uint256 gameId = moves[0].gameMove.gameId;
         timeouts[gameId].stake = msg.value;
         timeouts[gameId].gameMove = moves[1].gameMove;
+        timeouts[gameId].startTime = block.timestamp;
         emit TimeoutStarted(gameId, moves[1].gameMove.player, moves[1].gameMove.nonce, block.timestamp + TIMEOUT);
     }
 
-    function resolveTimeout(SignedGameMove calldata signedMove) external {
-        //TODO
+    /**
+        @notice a single valid signed move is enough to resolve the timout
+        @notice the move must be signed by the player whos turn it is
+        @notice the move must continue the game from the move started the timeout
+       */
+    function resolveTimeout(SignedGameMove calldata signedMove) external
+    timeoutStarted(signedMove.gameMove.gameId)
+    timeoutNotExpired(signedMove.gameMove.gameId)
+    signedByMover(signedMove)
+    onlyValidGameMove(signedMove.gameMove)
+    onlyPlayer(signedMove)
+    {
+        uint256 gameId = signedMove.gameMove.gameId;
+        GameMove storage timeoutMove = timeouts[gameId].gameMove;
+        require(timeoutMove.gameId == signedMove.gameMove.gameId, "Arbiter: game ids mismatch");
+        require(timeoutMove.nonce + 1 == signedMove.gameMove.nonce, "Arbiter: nonce mismatch");
+        require(timeoutMove.player != signedMove.gameMove.player, "Arbiter: same player");
+        require(keccak256(timeoutMove.newState) == keccak256(signedMove.gameMove.oldState), "Arbiter: state mismatch");
+        _clearTimeout(gameId);
+        emit TimeoutResolved(gameId, signedMove.gameMove.player, signedMove.gameMove.nonce);
     }
 
     function finalizeTimeout(uint256 gameId) external {
@@ -196,7 +219,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     /**
-    @dev checks only state transition validity, all the signatures are checked elsewhere
+        @dev checks only state transition validity, all the signatures are checked elsewhere
     */
     function _isValidGameMove(GameMove calldata move) private view returns (bool) {
         Game storage game = games[move.gameId];
@@ -209,8 +232,28 @@ contract Arbiter is IGameJutsuArbiter {
         keccak256(game.rules.transition(oldGameState, game.players[move.player] - 1, move.move).state) == keccak256(move.newState);
     }
 
-    function isValidGameMove(GameMove calldata signedMove) external view returns (bool) {
-        return _isValidGameMove(signedMove);
+    /**
+        @dev checks state transition validity and signatures, first signature must be by the player making the move
+    */
+    function _isValidSignedMove(SignedGameMove calldata move) private view returns (bool) {
+        if (recoverAddress(move.gameMove, move.signatures[0]) != move.gameMove.player) {
+            return false;
+        }
+
+        for (uint i = 1; i < move.signatures.length; i++) {
+            if (!_playerInGame(move.gameMove.gameId, recoverAddress(move.gameMove, move.signatures[i]))) {
+                return false;
+            }
+        }
+        return _isValidGameMove(move.gameMove);
+    }
+
+    function isValidGameMove(GameMove calldata gameMove) external view returns (bool) {
+        return _isValidGameMove(gameMove);
+    }
+
+    function isValidSignedMove(SignedGameMove calldata signedMove) external view returns (bool) {
+        return _isValidSignedMove(signedMove);
     }
 
     function disqualifyPlayer(uint256 gameId, address cheater) private {
@@ -273,8 +316,18 @@ contract Arbiter is IGameJutsuArbiter {
         emit SessionAddressRegistered(gameId, player, sessionAddress);
     }
 
+    function _clearTimeout(uint256 gameId) private {
+        //TODO consider introducing staker field to timeouts
+        Address.sendValue(payable(timeouts[gameId].gameMove.player), timeouts[gameId].stake);
+        delete timeouts[gameId];
+    }
+
     function _timeoutStarted(uint256 gameId) private view returns (bool) {
         return timeouts[gameId].startTime != 0;
+    }
+
+    function _timeoutExpired(uint256 gameId) private view returns (bool) {
+        return timeouts[gameId].startTime + TIMEOUT < block.timestamp;
     }
 
     function _allValidGameMoves(SignedGameMove[2] calldata moves) private view returns (bool) {
@@ -286,14 +339,37 @@ contract Arbiter is IGameJutsuArbiter {
         return true;
     }
 
+    function _moveSignedByMover(SignedGameMove calldata move) private view returns (bool) {
+        address signer = recoverAddress(move.gameMove, move.signatures[0]);
+        return signer == move.gameMove.player;
+    }
+
+    function _playerInGame(uint256 gameId, address player) private view returns (bool) {
+        return games[gameId].players[player] != 0;
+    }
+
     modifier firstMoveSignedByAll(SignedGameMove[2] calldata signedMoves) {
         require(_isSignedByAllPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
         _;
     }
 
     modifier lastMoveSignedByMover(SignedGameMove[2] calldata signedMoves) {
-        address signer = recoverAddress(signedMoves[1].gameMove, signedMoves[1].signatures[0]);
-        require(signer == signedMoves[1].gameMove.player, "Arbiter: first signature must belong to the player making the move");
+        require(_moveSignedByMover(signedMoves[1]), "Arbiter: first signature must belong to the player making the move");
+        _;
+    }
+
+    modifier signedByMover(SignedGameMove calldata signedMove) {
+        require(_moveSignedByMover(signedMove), "Arbiter: first signature must belong to the player making the move");
+        _;
+    }
+
+    modifier onlyValidGameMove(GameMove calldata move) {
+        require(_isValidGameMove(move), "Arbiter: invalid game move");
+        _;
+    }
+
+    modifier onlyPlayer(SignedGameMove calldata signedMove){
+        require(_playerInGame(signedMove.gameMove.gameId, signedMove.gameMove.player), "Arbiter: player not in game");
         _;
     }
 
@@ -320,6 +396,16 @@ contract Arbiter is IGameJutsuArbiter {
 
     modifier timeoutNotStarted(uint256 gameId) {
         require(!_timeoutStarted(gameId), "Arbiter: timeout already started");
+        _;
+    }
+
+    modifier timeoutExpired(uint256 gameId) {
+        require(_timeoutExpired(gameId), "Arbiter: timeout not expired");
+        _;
+    }
+
+    modifier timeoutNotExpired(uint256 gameId) {
+        require(!_timeoutExpired(gameId), "Arbiter: timeout already expired");
         _;
     }
 }
