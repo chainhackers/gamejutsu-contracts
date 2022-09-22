@@ -199,6 +199,66 @@ def test_is_valid_signed_move(arbiter, rules, start_game, player_a, player_b):
     assert tx.events['GameFinished']['winner'] == player_b.address
 
 
+def test_is_valid_signed_move_session_address(arbiter, rules, player_a, player_b, create_eth_account):
+    # https://codesandbox.io/s/gamejutsu-moves-eip712-no-nested-types-p5fnzf?file=/src/index.js
+    stake = Wei('0.1 ether')
+    a_session = create_eth_account()
+    tx = arbiter.proposeGame(rules, [a_session.address], {'value': stake, 'from': player_a.address})
+    game_id = tx.return_value
+
+    b_session = create_eth_account()
+    arbiter.acceptGame(game_id, [b_session.address], {'value': stake, 'from': player_b.address})
+
+    empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    nonce = 0
+    one_cross_board = encode_abi(STATE_TYPES, [[1, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
+    valid_move_data = to_bytes("0x00")
+    invalid_move_data = to_bytes("0x01")
+
+    valid_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        empty_board,
+        one_cross_board,
+        valid_move_data
+    ]
+    assert arbiter.isValidGameMove(valid_move)
+
+    invalid_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        empty_board,
+        one_cross_board,
+        invalid_move_data
+    ]
+    assert not arbiter.isValidGameMove(invalid_move)
+
+    signature_a = a_session.sign_message(encode_move(*valid_move)).signature
+    valid_signed_game_move = [
+        valid_move,
+        [signature_a]
+    ]
+    assert arbiter.isValidSignedMove(valid_signed_game_move)
+
+    with reverts():
+        arbiter.disputeMove(valid_signed_game_move, {'from': player_b.address})
+
+    signature_a = a_session.sign_message(encode_move(*invalid_move)).signature
+    invalid_signed_game_move = [
+        invalid_move,
+        [signature_a]
+    ]
+    assert not arbiter.isValidSignedMove(invalid_signed_game_move)
+
+    tx = arbiter.disputeMove(invalid_signed_game_move, {'from': player_b.address})
+    rules, stake, started, finished = arbiter.games(game_id)
+    assert finished
+    assert 'GameFinished' in tx.events
+    assert tx.events['GameFinished']['winner'] == player_b.address
+
+
 def test_is_valid_signed_move_wrong_user(arbiter, rules, start_game, player_a, player_b, player_c):
     game_id = start_game(
         player_a.address,

@@ -52,7 +52,10 @@ contract Arbiter is IGameJutsuArbiter {
         DOMAIN_SEPARATOR = keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256(bytes("GameJutsu")), keccak256("0.1"), 137, 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC, bytes32(0x920dfa98b3727bbfe860dd7341801f2e2a55cd7f637dea958edfc5df56c35e4d)));
     }
 
-    //TODO private game proposal - after the hackathon
+    /**
+        @notice msg.sender is the player proposing the game
+        @dev msg.sender gets index 0 in `playersArray`
+      */
     function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId) {
         gameId = nextGameId;
         games[gameId].rules = rules;
@@ -68,7 +71,10 @@ contract Arbiter is IGameJutsuArbiter {
         }
     }
 
-
+    /**
+        @notice msg.sender is the player who is joining the game
+        @dev msg.sender gets index 1 in `playersArray`
+      */
     function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external {
         require(games[gameId].players[msg.sender] == 0, "Arbiter: player already in game");
         require(games[gameId].started == false, "Arbiter: game already started");
@@ -129,12 +135,10 @@ contract Arbiter is IGameJutsuArbiter {
         emit PlayerResigned(gameId, loser);
     }
 
-    //TODO add dispute move version based on comparison to previously signed moves
-    function disputeMove(SignedGameMove calldata signedMove) external {
-        require(signedMove.signatures.length > 0, "Arbiter: no signatures");
+    function disputeMove(SignedGameMove calldata signedMove) external
+    signedByMover(signedMove)
+    {
         GameMove calldata gm = signedMove.gameMove;
-        address recoveredAddress = recoverAddress(gm, signedMove.signatures[0]);
-        require(recoveredAddress == gm.player, "Arbiter: first signature must belong to the player making the move");
         require(!_isValidGameMove(gm), "Arbiter: valid move disputed");
 
         Game storage game = games[gm.gameId];
@@ -145,7 +149,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external {
-        //TODO
+        //TODO add dispute move version based on comparison to previously signed moves
     }
 
     function recoverAddress(GameMove calldata gameMove, bytes calldata signature) public view returns (address){
@@ -244,7 +248,7 @@ contract Arbiter is IGameJutsuArbiter {
         @dev checks state transition validity and signatures, first signature must be by the player making the move
     */
     function _isValidSignedMove(SignedGameMove calldata move) private view returns (bool) {
-        if (recoverAddress(move.gameMove, move.signatures[0]) != move.gameMove.player) {
+        if (!_moveSignedByMover(move)) {
             return false;
         }
 
@@ -349,7 +353,8 @@ contract Arbiter is IGameJutsuArbiter {
 
     function _moveSignedByMover(SignedGameMove calldata move) private view returns (bool) {
         address signer = recoverAddress(move.gameMove, move.signatures[0]);
-        return signer == move.gameMove.player;
+        uint256 gameId = move.gameMove.gameId;
+        return games[gameId].players[signer] == games[gameId].players[move.gameMove.player];
     }
 
     function _playerInGame(uint256 gameId, address player) private view returns (bool) {

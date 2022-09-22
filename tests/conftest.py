@@ -20,6 +20,14 @@ def dev(accounts):
 
 
 @pytest.fixture(scope="module")
+def create_eth_account():
+    def create():
+        return Account.create()
+
+    return create
+
+
+@pytest.fixture(scope="module")
 def create_funded_eth_account(dev):
     def create():
         acct = Account.create()

@@ -3,7 +3,7 @@ GameJutsu framework to create on-chain arbiters for state channel based games
 
 ### Polygon mainnet contracts
 Arbiter 👩🏽‍⚖️
-https://polygonscan.com/address/0xc403667a1c550BFB365Aba91a5A6400308042378
+https://polygonscan.com/address/0x9BEE938f52e58DAf5f9448555Aee678EFDf88618
 
 TicTacToeRules ❎0️⃣ 
 https://polygonscan.com/address/0xC6F81d6610A0b1bcb8cC11d50602D490b7624a96

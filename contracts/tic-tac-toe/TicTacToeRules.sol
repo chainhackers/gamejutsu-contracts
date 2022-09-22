@@ -32,6 +32,9 @@ contract TicTacToeRules is IGameJutsuRules {
 
 type Move is uint8;
 
+    /**
+        @notice player 0 is X, player 1 is O
+      */
     function isValidMove(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));
