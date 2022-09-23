@@ -228,8 +228,17 @@ contract CheckersRules is IGameJutsuRules {
         return (isRed || isKing) && isRedJump || (!isRed || isKing) && isWhiteJump;
     }
 
-    function transition(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
-        return GameState(_gameState.gameId, _gameState.nonce + 1, _gameState.state);
+    function transition(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
+        State memory state = abi.decode(_state.state, (State));
+        Move memory move = abi.decode(_move, (Move));
+        state.cells[move.to - 1] = state.cells[move.from - 1];
+        state.cells[move.from - 1] = 0;
+        if (move.isJump) {
+            state.cells[(move.from + move.to) / 2] = 0;
+        } else {
+            state.redMoves = !state.redMoves;
+        }
+        return GameState(_state.gameId, _state.nonce + 1, abi.encode(state));
     }
 
     function defaultInitialGameState() external pure returns (bytes memory) {

@@ -12,7 +12,7 @@ __license__ = "MIT"
 from typing import List
 import pytest
 from brownie import interface
-from eth_abi import encode_abi
+from eth_abi import encode_abi, decode_abi
 from random import randbytes
 
 from brownie.test import given, strategy as st
@@ -266,6 +266,75 @@ def test_is_valid_jump_single_red(rules, game_id, cells, from_cell, to_cell, red
     assert rules.isValidMove(game_state, R, move_encoded) == is_valid
 
 
+def test_transition_single_move(rules, game_id):
+    #                  1       2       3       4
+    #      1  01 │███│   │███│   │███│   │███│   │ 04 4
+    #      5  05 │   │███│   │███│   │███│   │███│ 08 8
+    #      9  09 │███│   │███│10 │███│11 │███│   │ 0C 12
+    #      13 0D │   │███│   │███│ * │███│   │███│ 10 16
+    #      17 11 │███│   │███│18 │███│19 │███│   │ 14 20
+    #      21 15 │   │███│   │███│   │███│   │███│ 18 24
+    #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
+    #      29 1D │   │███│   │███│   │███│   │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [0] * 32
+    cells[15-1] = 2
+
+    red_moves = True
+    nonce = 0
+    board = [cells, red_moves, 0]
+    board_encoded = encode_abi(STATE_TYPES, board)
+    game_state = [game_id, nonce, board_encoded]
+
+    move = [15, 10, False, False]
+    move_encoded = encode_abi(MOVE_TYPES, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move_encoded)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[15-1] == 0
+    assert next_cells[10-1] == 2
+    assert not next_move_is_red
+    assert next_winner == 0
+
+    nonce = 5
+    cells[15-1] = 1
+    red_moves = False
+    board = [cells, red_moves, 0]
+    board_encoded = encode_abi(STATE_TYPES, board)
+    game_state = [game_id, nonce, board_encoded]
+
+    move = [15, 11, False, False]
+    move_encoded = encode_abi(MOVE_TYPES, move)
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move_encoded)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[15-1] == 0
+    assert next_cells[11-1] == 1
+    assert next_move_is_red
+    assert next_winner == 0
+
+    nonce = 10
+    cells[15-1] = 2
+    red_moves = True
+    board = [cells, red_moves, 0]
+    board_encoded = encode_abi(STATE_TYPES, board)
+    game_state = [game_id, nonce, board_encoded]
+
+    move = [15, 19, False, False]
+    move_encoded = encode_abi(MOVE_TYPES, move)
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move_encoded)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[15-1] == 0
+    assert next_cells[19-1] == 2
+    assert not next_move_is_red
+    assert next_winner == 0
+
+
 def up_left(cell: int) -> int:
     d = 1 if cell % 8 > 4 else 0
     return cell - 4 - d if cell % 8 != 5 and cell > 5 else 0
@@ -277,7 +346,7 @@ def jump_up_left(cell: int) -> int:
 
 def up_right(cell: int) -> int:
     d = 1 if cell % 8 > 4 else 0
-    return cell - 4 - d if cell % 8 != 4 and cell > 4 else 0
+    return cell - 3 - d if cell % 8 != 4 and cell > 4 else 0
 
 
 def jump_up_right(cell: int) -> int:
