@@ -106,7 +106,7 @@ contract CheckersRules is IGameJutsuRules {
     //        1D      1E      1F      20
 
     /**
-        @param state is the state of the game represented by `abi.encode`d `State` struct
+        @param _state is the state of the game represented by `abi.encode`d `State` struct
         @param playerId 0 is White, player 1 is Red
         @param _move is the move represented by `abi.encode`d `Move` struct
         */
@@ -139,6 +139,7 @@ contract CheckersRules is IGameJutsuRules {
         isDirectionCorrect &&
         isFromOccupied &&
         isToEmpty &&
+        isToCorrect &&
         isJumpCorrect &&
         isCaptureCorrect;
     }
@@ -183,9 +184,16 @@ contract CheckersRules is IGameJutsuRules {
         return (isRed || isKing) && isRedMove || (!isRed || isKing) && isWhiteMove;
     }
 
+    /**
+        @param state `abi.encode`d `State` struct
+        @param from 1-based index of the cell from which the checker is moved
+        @param to 1-based index of the cell to which the checker is moved
+        @param isPlayerRed is true if the player doing the move plays red
+        @param isKing is true if the checker doing the move is king
+        */
     function _isCaptureCorrect(State memory state, uint8 from, uint8 to, bool isPlayerRed, bool isKing) internal pure returns (bool) {
         bytes1 jump = bytes1(to);
-        uint8 f2 = from * 2;
+        uint8 f2 = (from - 1) * 2;
         uint8 opponent = _opponent(isPlayerRed);
         if (JUMPS[f2] == jump) {
             return state.cells[uint8(MOVES[f2])] == opponent;
@@ -205,8 +213,9 @@ contract CheckersRules is IGameJutsuRules {
     }
 
 
-    function _isJumpDestinationCorrect(uint8 from, uint8 _to, bool isRed, bool isKing) internal pure returns (bool) {
+    function _isJumpDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) internal pure returns (bool) {
         bytes1 to = bytes1(_to);
+        uint8 from = _from - 1;
         bool isRedJump = (
         RJUMP[from * 2] == to ||
         RJUMP[from * 2 + 1] == to
@@ -225,14 +234,14 @@ contract CheckersRules is IGameJutsuRules {
 
     function defaultInitialGameState() external pure returns (bytes memory) {
 
-        // 0   │███│ o │███│ o │███│ o │███│ o │
-        // 4   │ o │███│ o │███│ o │███│ o │███│
-        // 8   │███│ o │███│ o │███│ o │███│ o │
-        // 12  │   │███│   │███│   │███│   │███│
-        // 16  │███│   │███│   │███│   │███│   │
-        // 20  │ x │███│ x │███│ x │███│ x │███│
-        // 24  │███│ x │███│ x │███│ x │███│ x │
-        // 28  │ x │███│ x │███│ x │███│ x │███│
+        // 1   │███│ o │███│ o │███│ o │███│ o │
+        // 5   │ o │███│ o │███│ o │███│ o │███│
+        // 9   │███│ o │███│ o │███│ o │███│ o │
+        // 13  │   │███│ 14│███│   │███│   │███│
+        // 17  │███│   │███│ 18│███│   │███│   │
+        // 21  │ x │███│ x │███│ x │███│ x │███│
+        // 25  │███│ x │███│ x │███│ x │███│ x │
+        // 29  │ x │███│ x │███│ x │███│ x │███│
 
         return abi.encode(State([
             2, 2, 2, 2,
