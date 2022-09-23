@@ -26,6 +26,9 @@ import "../../interfaces/IGameJutsuRules.sol";
 contract CheckersRules is IGameJutsuRules {
 
     /**
+        @custom cells 32-byte array of uint8s representing the board
+        @custom redMoves says whether it is red's turn to move
+        @custom winner is 0 for no winner, 1 for white, 2 for red
         @dev cells[i] values:
         @dev 0x01 is White
         @dev 0x02 is Red
@@ -38,6 +41,12 @@ contract CheckersRules is IGameJutsuRules {
         uint8 winner;
     }
 
+    /**
+        @custom from 1-based index of the cell to move from
+        @custom to 1-based index of the cell to move to
+        @custom isJump declares if the move is a jump
+        @custom passMoveToOpponent declares explicitly if the next move is to be done by the opponent
+      */
     struct Move {
         uint8 from;
         uint8 to;
@@ -97,10 +106,12 @@ contract CheckersRules is IGameJutsuRules {
     //        1D      1E      1F      20
 
     /**
-        @dev player 0 is White, player 1 is Red
+        @param state is the state of the game represented by `abi.encode`d `State` struct
+        @param playerId 0 is White, player 1 is Red
+        @param _move is the move represented by `abi.encode`d `Move` struct
         */
-    function isValidMove(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
-        State memory state = abi.decode(_gameState.state, (State));
+    function isValidMove(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
+        State memory state = abi.decode(_state.state, (State));
         Move memory move = abi.decode(_move, (Move));
         bool isPlayerRed = playerId == 1;
         bool isInBounds = move.from > 0 && move.from <= 32 && move.to > 0 && move.to <= 32;
@@ -109,51 +120,53 @@ contract CheckersRules is IGameJutsuRules {
         bool isFromOccupied = _isCellOccupied(state, move.from);
         bool isToEmpty = !_isCellOccupied(state, move.to);
 
-        bool isCheckerRed = false; //_isCheckerRed(state, move.from);
-        bool isCheckerKing = false; //_isCheckerKing(state, move.from);
+        bool isCheckerRed = _isCheckerRed(state, move.from);
+        bool isCheckerKing = _isCheckerKing(state, move.from);
 
-        bool isColorCorrect = false;//isCheckerRed == isPlayerRed;
-        bool isDirectionCorrect = false;//isCheckerKing || isCheckerRed ? move.from < move.to : move.from > move.to;
-//
-//
-//        bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing) ||
-//        move.isJump && _isJumpDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing);
-//
-//        bool isJumpCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
-//        bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
+        bool isColorCorrect = isCheckerRed == isPlayerRed;
+        bool isDirectionCorrect = isCheckerKing || isCheckerRed ? move.from > move.to : move.from < move.to;
 
-//        return isColorCorrect;
+        bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing) ||
+        move.isJump && _isJumpDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing);
+        bool isJumpCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
+        bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
+
         return isCorrectPlayerMove &&
         isInBounds &&
         isFromOccupied &&
         isToEmpty &&
         isColorCorrect &&
         isDirectionCorrect &&
-        isFromOccupied;// &&
-//        isToEmpty &&
-//        isJumpCorrect &&
-//        isCaptureCorrect;
+        isFromOccupied &&
+        isToEmpty &&
+        isJumpCorrect &&
+        isCaptureCorrect;
     }
 
     /**
         @param state `uint8[32]` array representing board cells, 0: empty, 01:W, 02:R, A1:WK, A2:RK
         @param cell is 1-based index of the cell checked
         */
-    function _isCellOccupied(State memory state, uint8 cell) internal pure returns (bool) {
+    function _isCellOccupied(State memory state, uint8 cell) private pure returns (bool) {
         return state.cells[cell - 1] != 0;
     }
 
-    function _isCheckerRed(State memory state, uint8 from) private pure returns (bool) {
-        return state.cells[from - 1] % 16 == 1;
+    /**
+        @param cell is 1-based index of the cell checked
+        */
+    function _isCheckerRed(State memory state, uint8 cell) private pure returns (bool) {
+        return state.cells[cell - 1] % 16 == 2;
     }
 
-    function _isCheckerKing(State memory state, uint8 from) private pure returns (bool) {
-        return state.cells[from - 1] % 16 == 2;
+    function _isCheckerKing(State memory state, uint8 cell) private pure returns (bool) {
+        return state.cells[cell - 1] / 16 == 10;
     }
 
     /**
         @param _from 1-based index of the cell from which the checker is moved
         @param _to 1-based index of the cell to which the checker is moved
+        @param isRed is true if the checker doing the move is red
+        @param isKing is true if the checker doing the move is king
         */
     function _isMoveDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) private pure returns (bool) {
         uint8 from = _from - 1;

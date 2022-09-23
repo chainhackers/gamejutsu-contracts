@@ -6,11 +6,11 @@
 #         \/     \/      \/     \/                          \/
 # https://gamejutsu.app
 # ETHOnline2022 submission by ChainHackers
-__author__ = ["Gene A. Tsvigun" ]
+__author__ = ["Gene A. Tsvigun"]
 __license__ = "MIT"
 
 import pytest
-from brownie import reverts, interface
+from brownie import interface
 from brownie.convert import to_bytes
 from eth_abi import encode_abi, decode_abi
 from random import randbytes

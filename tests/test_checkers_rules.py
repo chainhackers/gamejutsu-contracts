@@ -10,12 +10,12 @@ __author__ = ["Gene A. Tsvigun"]
 __license__ = "MIT"
 
 import pytest
-from brownie import reverts, interface
+from brownie import interface
 from eth_abi import encode_abi
 from random import randbytes
 
 from brownie.test import given, strategy as st
-from brownie.test import strategies
+from hypothesis import strategies
 
 
 @pytest.fixture(scope='module')
@@ -61,10 +61,11 @@ W, R = 0, 1  # playerId
 @given(
     empty_cells=st('uint8[32]', max_value=0),
     from_cell=st('uint8', min_value=1, max_value=32),
-    to_cell=st('uint8', min_value=1, max_value=32)
+    to_cell=st('uint8', min_value=1, max_value=32),
+    red_moves=st('bool')
 )
-def test_is_valid_move(rules, game_id, empty_cells, from_cell, to_cell):
-    empty_board = [empty_cells, True, 0]
+def test_is_valid_move_empty_board(rules, game_id, empty_cells, from_cell, to_cell, red_moves):
+    empty_board = [empty_cells, red_moves, 0]
     empty_board_encoded = encode_abi(STATE_TYPES, empty_board)
     nonce = 0
     game_state = [game_id, nonce, empty_board_encoded]
@@ -73,3 +74,51 @@ def test_is_valid_move(rules, game_id, empty_cells, from_cell, to_cell):
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, R, move_encoded)
     assert not rules.isValidMove(game_state, W, move_encoded)
+
+
+@given(
+    cells=(strategies.integers(min_value=1, max_value=32).map(lambda i: [2 if j == i - 1 else 0 for j in range(32)])),
+    from_cell=st('uint8', min_value=1, max_value=32),
+    to_cell=st('uint8', min_value=1, max_value=32),
+    red_moves=st('bool')
+)
+def test_is_valid_move_single_white(rules, game_id, cells, from_cell, to_cell, red_moves):
+    board = [cells, red_moves, 0]
+    board_encoded = encode_abi(STATE_TYPES, board)
+    nonce = 0
+    game_state = [game_id, nonce, board_encoded]
+
+    move = [from_cell, to_cell, False, False]
+    move_encoded = encode_abi(MOVE_TYPES, move)
+    assert not rules.isValidMove(game_state, W, move_encoded)
+
+    is_valid = red_moves and cells[from_cell - 1] == 2 and from_cell // 4 > 0 and (
+            (from_cell + 4) % 8 == 1 and to_cell == from_cell - 4 or
+            (from_cell + 4) % 8 == 0 and to_cell == from_cell - 5 or
+            (to_cell == from_cell - 4 or to_cell == from_cell - 5)
+    )
+    assert rules.isValidMove(game_state, R, move_encoded) == is_valid
+
+
+@given(
+    cells=(strategies.integers(min_value=1, max_value=32).map(lambda i: [2 if j == i - 1 else 0 for j in range(32)])),
+    from_cell=st('uint8', min_value=1, max_value=32),
+    to_cell=st('uint8', min_value=1, max_value=32),
+    red_moves=st('bool')
+)
+def test_is_valid_move_single_white(rules, game_id, cells, from_cell, to_cell, red_moves):
+    board = [cells, red_moves, 0]
+    board_encoded = encode_abi(STATE_TYPES, board)
+    nonce = 0
+    game_state = [game_id, nonce, board_encoded]
+
+    move = [from_cell, to_cell, False, False]
+    move_encoded = encode_abi(MOVE_TYPES, move)
+    assert not rules.isValidMove(game_state, R, move_encoded)
+
+    is_valid = not red_moves and cells[from_cell - 1] == 2 and from_cell // 4 > 0 and (
+            (from_cell + 4) % 8 == 1 and to_cell == from_cell - 4 or
+            (from_cell + 4) % 8 == 0 and to_cell == from_cell - 5 or
+            (to_cell == from_cell - 4 or to_cell == from_cell - 5)
+    )
+    assert rules.isValidMove(game_state, W, move_encoded) == is_valid
