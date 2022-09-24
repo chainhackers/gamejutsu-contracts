@@ -494,9 +494,11 @@ def test_is_valid_signed_players_moves_in_right_sequence(arbiter, rules, start_g
         arbiter.disputeMove(valid_signed_game_move2, {'from': player_a.address})
 
 
-def test_finish_game(arbiter, rules, start_game, player_a, player_b):
+def test_finish_game(arbiter, rules, start_game, player_a, player_b, create_eth_account):
     stake = Wei('0.1 ether')
-    tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a.address})
+    a_session = create_eth_account()
+    b_session = create_eth_account()
+    tx = arbiter.proposeGame(rules, [a_session.address], {'value': stake, 'from': player_a.address})
     game_id = tx.return_value
     assert 'GameProposed' in tx.events
     assert tx.events['GameProposed']['gameId'] == game_id
@@ -545,8 +547,8 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
     ]
 
     encoded_o_center_move = encode_move(*o_center_move)
-    signature_a = player_a.sign_message(encoded_o_center_move).signature
-    signature_b = player_b.sign_message(encoded_o_center_move).signature
+    signature_a = a_session.sign_message(encoded_o_center_move).signature
+    signature_b = b_session.sign_message(encoded_o_center_move).signature
     signed_by_both_players_move = [
         o_center_move,
         [signature_a, signature_b]
@@ -554,7 +556,7 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
 
     signed_x_winning_move = [
         x_winning_move,
-        [player_a.sign_message(encode_move(*x_winning_move)).signature]
+        [a_session.sign_message(encode_move(*x_winning_move)).signature]
     ]
     signed_x_non_winning_move = [
         x_non_winning_move,
@@ -567,7 +569,7 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b):
             {'from': player_a.address}
         )
 
-    arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b.address})
+    arbiter.acceptGame(game_id, [b_session.address], {'value': stake, 'from': player_b.address})
     rules, stake, started, finished = arbiter.games(game_id)
     assert started
     assert not finished
@@ -697,7 +699,10 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
     assert e['gameId'] == game_id
     assert e['player'] == player_b.address
     assert e['nonce'] == 3
-    assert e['timeout'] == ts + arbiter.TIMEOUT()
+    expected_timeout = ts + arbiter.TIMEOUT()
+    # AssertionError: assert 1664030008 == 1664030008 ± 3.0e+00
+    # Brownie quirks workaround
+    assert expected_timeout <= e['timeout'] <= expected_timeout + 3
     assert arbiter.timeouts(game_id)[0] == ts
 
     # ╭───┬───┬───╮
@@ -773,10 +778,11 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
 
 
 def test_finalize_timeout(arbiter, rules, start_game, player_a, player_b):
+    stake = Wei('0.1 ether')
     game_id = start_game(
         player_a.address,
         player_b.address,
-        Wei('0.1 ether')
+        stake
     )
 
     # ╭───┬───┬───╮
@@ -857,7 +863,9 @@ def test_finalize_timeout(arbiter, rules, start_game, player_a, player_b):
 
     chain.sleep(arbiter.DEFAULT_TIMEOUT() + 1)
 
+    b_balance_before_pre_finalize_timeout = balance(player_b)
     tx = arbiter.finalizeTimeout(game_id, {'from': player_b.address})
+    assert balance(player_b) == arbiter.DEFAULT_TIMEOUT_STAKE() + b_balance_before_pre_finalize_timeout + 2 * stake
     assert 'GameFinished' in tx.events
     e = tx.events['GameFinished']
     assert e['gameId'] == game_id

@@ -102,16 +102,18 @@ contract Arbiter is IGameJutsuArbiter {
     function finishGame(SignedGameMove[2] calldata signedMoves) external
     movesInSequence(signedMoves)
     returns (address winner){
-        require(_isSignedByAllPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
-        address signer = recoverAddress(signedMoves[1].gameMove, signedMoves[1].signatures[0]);
-        require(signer == signedMoves[1].gameMove.player, "Arbiter: first signature must belong to the player making the move");
+        require(_isSignedByAllPlayersAndOnlyByPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
+        require(_moveSignedByMover(signedMoves[1]), "Arbiter: second move not signed by mover");
 
         uint256 gameId = signedMoves[0].gameMove.gameId;
         require(_isGameOn(gameId), "Arbiter: game not active");
         require(signedMoves[1].gameMove.gameId == gameId, "Arbiter: game ids mismatch");
         require(_isValidGameMove(signedMoves[1].gameMove), "Arbiter: invalid game move");
 
-        IGameJutsuRules.GameState memory newState = IGameJutsuRules.GameState(gameId, signedMoves[1].gameMove.nonce + 1, signedMoves[1].gameMove.newState);
+        IGameJutsuRules.GameState memory newState = IGameJutsuRules.GameState(
+            gameId,
+            signedMoves[1].gameMove.nonce + 1,
+            signedMoves[1].gameMove.newState);
         IGameJutsuRules rules = games[gameId].rules;
         require(rules.isFinal(newState), "Arbiter: game state not final");
         for (uint8 i = 0; i < NUM_PLAYERS; i++) {
@@ -219,7 +221,7 @@ contract Arbiter is IGameJutsuArbiter {
     {
         address loser = _opponent(gameId, timeouts[gameId].gameMove.player);
         disqualifyPlayer(gameId, loser);
-        delete timeouts[gameId];
+        _clearTimeout(gameId);
     }
 
     function getPlayers(uint256 gameId) external view returns (address[2] memory){
@@ -297,17 +299,20 @@ contract Arbiter is IGameJutsuArbiter {
         return games[gameId].started && !games[gameId].finished;
     }
 
-    function _isSignedByAllPlayers(SignedGameMove calldata signedMove) private view returns (bool) {
+    function _isSignedByAllPlayersAndOnlyByPlayers(SignedGameMove calldata signedMove) private view returns (bool) {
         address[] memory signers = getSigners(signedMove);
+        bool[2] memory signersPresent;
         if (signers.length != NUM_PLAYERS) {
             return false;
         }
         for (uint256 i = 0; i < signers.length; i++) {
-            if (games[signedMove.gameMove.gameId].players[signers[i]] == 0) {
+            uint8 oneBasedPlayerId = games[signedMove.gameMove.gameId].players[signers[i]];
+            if (oneBasedPlayerId == 0) {
                 return false;
             }
+            signersPresent[oneBasedPlayerId - 1] = true;
         }
-        return true;
+        return signersPresent[0] && signersPresent[1];
     }
 
     function _finishGame(uint256 gameId, address winner, address loser, bool draw) private {
@@ -329,7 +334,6 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function _clearTimeout(uint256 gameId) private {
-        //TODO consider introducing staker field to timeouts
         Address.sendValue(payable(timeouts[gameId].gameMove.player), timeouts[gameId].stake);
         delete timeouts[gameId];
     }
@@ -362,7 +366,7 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     modifier firstMoveSignedByAll(SignedGameMove[2] calldata signedMoves) {
-        require(_isSignedByAllPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
+        require(_isSignedByAllPlayersAndOnlyByPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
         _;
     }
 
