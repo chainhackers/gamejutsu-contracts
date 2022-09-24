@@ -219,7 +219,7 @@ contract Arbiter is IGameJutsuArbiter {
     {
         address loser = _opponent(gameId, timeouts[gameId].gameMove.player);
         disqualifyPlayer(gameId, loser);
-        delete timeouts[gameId];
+        _clearTimeout(gameId);
     }
 
     function getPlayers(uint256 gameId) external view returns (address[2] memory){
@@ -329,7 +329,6 @@ contract Arbiter is IGameJutsuArbiter {
     }
 
     function _clearTimeout(uint256 gameId) private {
-        //TODO consider introducing staker field to timeouts
         Address.sendValue(payable(timeouts[gameId].gameMove.player), timeouts[gameId].stake);
         delete timeouts[gameId];
     }

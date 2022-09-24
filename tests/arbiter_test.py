@@ -773,10 +773,11 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
 
 
 def test_finalize_timeout(arbiter, rules, start_game, player_a, player_b):
+    stake = Wei('0.1 ether')
     game_id = start_game(
         player_a.address,
         player_b.address,
-        Wei('0.1 ether')
+        stake
     )
 
     # ╭───┬───┬───╮
@@ -857,7 +858,9 @@ def test_finalize_timeout(arbiter, rules, start_game, player_a, player_b):
 
     chain.sleep(arbiter.DEFAULT_TIMEOUT() + 1)
 
+    b_balance_before_pre_finalize_timeout = balance(player_b)
     tx = arbiter.finalizeTimeout(game_id, {'from': player_b.address})
+    assert balance(player_b) == arbiter.DEFAULT_TIMEOUT_STAKE() + b_balance_before_pre_finalize_timeout + 2 * stake
     assert 'GameFinished' in tx.events
     e = tx.events['GameFinished']
     assert e['gameId'] == game_id
