@@ -146,6 +146,37 @@ def encode_move(
     }
     return encode_structured_data(data)
 
+def test_is_valid_finish_signed_move(arbiter, rules, start_game, player_a, player_b):
+    game_id = start_game(
+        player_a.address,
+        player_b.address,
+        Wei('0.1 ether')
+    )
+
+    almost_finished_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
+    finished_board = encode_abi(STATE_TYPES, [[1, 1, 1, 2, 2, 0, 0, 0, 0], True, False])
+    nonce = 4
+    valid_move_data = to_bytes("0x02")
+
+    valid_move = [
+        game_id,
+        nonce,
+        player_a.address,
+        almost_finished_board,
+        finished_board,
+        valid_move_data
+    ]
+  
+    signature_a = player_a.sign_message(encode_move(*valid_move)).signature
+    valid_signed_game_move = [
+        valid_move,
+        [signature_a]
+    ]
+
+    assert arbiter.isValidGameMove(valid_move)
+
+    with reverts():
+        arbiter.disputeMove(valid_signed_game_move, {'from': player_b.address})
 
 def test_is_valid_signed_move(arbiter, rules, start_game, player_a, player_b):
     # https://codesandbox.io/s/gamejutsu-moves-eip712-no-nested-types-p5fnzf?file=/src/index.js

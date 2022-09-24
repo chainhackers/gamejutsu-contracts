@@ -29,6 +29,16 @@ def game_id():
 STATE_TYPES = ["uint8[9]", "bool", "bool"]
 X, O = 0, 1
 
+def test_is_valid_finish_move(rules, game_id):
+    almost_finish_board = encode_abi(STATE_TYPES, [[1, 1, 0, 2, 2, 0, 0, 0, 0], False, False])
+    nonce = 4
+    game_state = [game_id, nonce, almost_finish_board]
+
+    def is_valid(player_id: int, cell_id: int) -> bool:
+        return rules.isValidMove(game_state, player_id, to_bytes(cell_id))
+
+    assert is_valid(X, 2) is True
+    assert is_valid(O, 2) is False
 
 def test_is_valid_move(rules, game_id):
     empty_board = encode_abi(STATE_TYPES, [[0, 0, 0, 0, 0, 0, 0, 0, 0], False, False])
