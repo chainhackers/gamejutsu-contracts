@@ -59,7 +59,7 @@ interface IGameJutsuArbiter {
 
     function registerSessionAddress(uint256 gameId, address sessionAddress) external;
 
-    function disputeMove(SignedGameMove calldata signedMove) external;
+    function disputeMove(SignedGameMove calldata signedMove) external; //TODO mark the most important methods
 
     function disputeMoveWithHistory(SignedGameMove[2] calldata signedMoves) external;
 
