@@ -355,11 +355,11 @@ contract CheckersRules is IGameJutsuRules {
 
 
     function isFinal(GameState calldata _gameState) external pure override returns (bool) {
-        return false;
+        return _decodeState(_gameState.state).winner != 0;
     }
 
     function isWin(GameState calldata _gameState, uint8 playerId) external pure override returns (bool) {
-        return false;
+        return _decodeState(_gameState.state).winner == playerId + 1;
     }
 
     function _decodeMove(bytes calldata move) private pure returns (Move memory) {
@@ -376,9 +376,5 @@ contract CheckersRules is IGameJutsuRules {
 
     function _isKing(uint8 _piece) private pure returns (bool) {
         return _piece % 16 == 10;
-    }
-
-    function _canMoveTo(uint8 i) private pure returns (uint8[4] memory) {
-        return [0, 0, 0, 0];
     }
 }
