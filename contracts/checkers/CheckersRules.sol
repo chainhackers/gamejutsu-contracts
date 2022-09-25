@@ -128,9 +128,29 @@ contract CheckersRules is IGameJutsuRules {
 
         bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing) ||
         move.isJump && _isJumpDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing);
-        bool isJumpCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
         bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
 
+        uint8[32] memory cells = state.cells;
+        if (move.isJump) {
+            cells[move.to - 1] = cells[move.from - 1];
+            cells[move.from - 1] = 0;
+
+            bytes1 jump = bytes1(move.to);
+            uint8 f2 = (move.from - 1) * 2;
+
+            if (JUMPS[f2] == jump) {
+                cells[uint8(MOVES[f2]) - 1] == 0;
+            } else if (JUMPS[f2 + 1] == jump) {
+                cells[uint8(MOVES[f2 + 1]) - 1] = 0;
+            } else if (RJUMP[f2] == jump) {
+                cells[uint8(RMOVS[f2]) - 1] = 0;
+            } else if (RJUMP[f2 + 1] == jump) {
+                cells[uint8(RMOVS[f2 + 1]) - 1] = 0;
+            }
+
+        }
+        bool isPassMoveCorrect = !move.isJump && move.passMoveToOpponent ||
+        move.isJump && move.passMoveToOpponent != _validJumpExists(cells, isPlayerRed);
         return isCorrectPlayerMove &&
         isInBounds &&
         isFromOccupied &&
@@ -140,8 +160,8 @@ contract CheckersRules is IGameJutsuRules {
         isFromOccupied &&
         isToEmpty &&
         isToCorrect &&
-        isJumpCorrect &&
-        isCaptureCorrect;
+        isCaptureCorrect &&
+        isPassMoveCorrect;
     }
 
     /**
@@ -196,13 +216,13 @@ contract CheckersRules is IGameJutsuRules {
         uint8 f2 = (from - 1) * 2;
         uint8 opponent = _opponent(isPlayerRed);
         if (JUMPS[f2] == jump) {
-            return state.cells[uint8(MOVES[f2])] == opponent;
+            return state.cells[uint8(MOVES[f2]) - 1] == opponent;
         } else if (JUMPS[f2 + 1] == jump) {
-            return state.cells[uint8(MOVES[f2 + 1])] == opponent;
+            return state.cells[uint8(MOVES[f2 + 1]) - 1] == opponent;
         } else if (RJUMP[f2] == jump) {
-            return state.cells[uint8(RMOVS[f2])] == opponent;
+            return state.cells[uint8(RMOVS[f2]) - 1] == opponent;
         } else if (RJUMP[f2 + 1] == jump) {
-            return state.cells[uint8(RMOVS[f2 + 1])] == opponent;
+            return state.cells[uint8(RMOVS[f2 + 1]) - 1] == opponent;
         } else {
             return false;
         }
@@ -228,14 +248,20 @@ contract CheckersRules is IGameJutsuRules {
         return (isRed || isKing) && isRedJump || (!isRed || isKing) && isWhiteJump;
     }
 
+    /**
+        @notice What the rules say happens when a particular move is made in a particular state by a particular player
+        @param _state GameState struct with the current state of the game: id, nonce, encoded game-specific state
+        @param playerId 0 is White, player 1 is Red
+        @param _move is the move represented by `abi.encode`d `Move` struct
+        */
     function transition(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
         State memory state = abi.decode(_state.state, (State));
         Move memory move = abi.decode(_move, (Move));
         state.cells[move.to - 1] = state.cells[move.from - 1];
         state.cells[move.from - 1] = 0;
         if (move.isJump) {
-            state.cells[(move.from + move.to) / 2] = 0;
-            state.redMoves = _validJumpExist(state.cells, state.redMoves);
+            state.cells[(move.from + move.to) / 2 - (move.from % 8 > 4 ? 1 : 0)] = 0;
+            state.redMoves = _validJumpExists(state.cells, state.redMoves);
         } else {
             state.redMoves = !state.redMoves;
         }
@@ -278,7 +304,7 @@ contract CheckersRules is IGameJutsuRules {
         }
     }
 
-    function _validJumpExist(uint8[32] memory cells, bool forRed) private pure returns (bool) {
+    function _validJumpExists(uint8[32] memory cells, bool forRed) private pure returns (bool) {
         for (uint8 i = 0; i < 32; i++) {
             bool isRed = cells[i] % 16 == 2;
             if (isRed == forRed && _canJump(cells, i)) {
