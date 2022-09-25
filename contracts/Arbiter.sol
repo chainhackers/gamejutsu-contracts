@@ -123,12 +123,13 @@ contract Arbiter is IGameJutsuArbiter {
       */
     function proposeGame(IGameJutsuRules rules, address[] calldata sessionAddresses) payable external returns (uint256 gameId) {
         gameId = nextGameId;
-        games[gameId].rules = rules;
-        games[gameId].players[msg.sender] = 1;
-        games[gameId].playersArray[0] = msg.sender;
-        games[gameId].stake = msg.value;
+        Game storage game = games[gameId];
+        game.rules = rules;
+        game.players[msg.sender] = 1;
+        game.playersArray[0] = msg.sender;
+        game.stake = msg.value;
         nextGameId++;
-        emit GameProposed(gameId, msg.value, msg.sender);
+        emit GameProposed(address(rules), gameId, msg.value, msg.sender);
         if (sessionAddresses.length > 0) {
             for (uint256 i = 0; i < sessionAddresses.length; i++) {
                 _registerSessionAddress(gameId, msg.sender, sessionAddresses[i]);
@@ -143,16 +144,17 @@ contract Arbiter is IGameJutsuArbiter {
         @param sessionAddresses Addresses the joiner intends to use to sign moves
       */
     function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external {
-        require(games[gameId].players[msg.sender] == 0, "Arbiter: player already in game");
-        require(games[gameId].started == false, "Arbiter: game already started");
-        require(games[gameId].playersArray[0] != address(0), "Arbiter: game not proposed");
-        require(games[gameId].stake <= msg.value, "Arbiter: stake mismatch");
-        games[gameId].players[msg.sender] = 2;
-        games[gameId].playersArray[1] = msg.sender;
-        games[gameId].stake += msg.value;
-        games[gameId].started = true;
+        Game storage game = games[gameId];
+        require(game.players[msg.sender] == 0, "Arbiter: player already in game");
+        require(game.started == false, "Arbiter: game already started");
+        require(game.playersArray[0] != address(0), "Arbiter: game not proposed");
+        require(game.stake <= msg.value, "Arbiter: stake mismatch");
+        game.players[msg.sender] = 2;
+        game.playersArray[1] = msg.sender;
+        game.stake += msg.value;
+        game.started = true;
 
-        emit GameStarted(gameId, games[gameId].stake, games[gameId].playersArray);
+        emit GameStarted(address(game.rules), gameId, game.stake, game.playersArray);
         if (sessionAddresses.length > 0) {
             for (uint256 i = 0; i < sessionAddresses.length; i++) {
                 _registerSessionAddress(gameId, msg.sender, sessionAddresses[i]);

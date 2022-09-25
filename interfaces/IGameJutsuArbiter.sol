@@ -67,11 +67,11 @@ interface IGameJutsuArbiter {
         bytes[] signatures;
     }
 
-    event GameStarted(uint256 gameId, uint256 stake, address[2] players); //TODO: add rules address
+    event GameProposed(address indexed rules, uint256 gameId, uint256 stake, address indexed proposer);
+    event GameStarted(address indexed rules, uint256 gameId, uint256 stake, address[2] players);
     event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
     event PlayerDisqualified(uint256 gameId, address player);
     event PlayerResigned(uint256 gameId, address player);
-    event GameProposed(uint256 gameId, uint256 stake, address proposer); //TODO: add rules address
     event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
     event TimeoutStarted(uint256 gameId, address player, uint256 nonce, uint256 timeout);
     event TimeoutResolved(uint256 gameId, address player, uint256 nonce);
