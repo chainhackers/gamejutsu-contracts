@@ -233,7 +233,7 @@ contract CheckersRules is IGameJutsuRules {
     }
 
 
-    function _isJumpDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) internal pure returns (bool) {
+    function _isJumpDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) private pure returns (bool) {
         bytes1 to = bytes1(_to);
         uint8 from = _from - 1;
         bool isRedJump = (
@@ -261,13 +261,18 @@ contract CheckersRules is IGameJutsuRules {
         state.cells[move.from - 1] = 0;
         if (move.isJump) {
             state.cells[(move.from + move.to) / 2 - (move.from % 8 > 4 ? 1 : 0)] = 0;
-            state.redMoves = _validJumpExists(state.cells, state.redMoves);
+            if (!_validJumpExists(state.cells, state.redMoves)) {
+                state.redMoves = !state.redMoves;
+            }
         } else {
             state.redMoves = !state.redMoves;
         }
         return GameState(_state.gameId, _state.nonce + 1, abi.encode(state));
     }
 
+    /**
+        @notice returns the traditional checkers starting position
+      */
     function defaultInitialGameState() external pure returns (bytes memory) {
 
         // 1   │███│ o │███│ o │███│ o │███│ o │
@@ -291,7 +296,7 @@ contract CheckersRules is IGameJutsuRules {
             ], false, 0));
     }
 
-    function _validMovesExist(uint8[32] memory cells) private view returns (bool whiteHasValidMoves, bool redHasValidMoves) {
+    function _validMovesExist(uint8[32] memory cells) private pure returns (bool whiteHasValidMoves, bool redHasValidMoves) {
         whiteHasValidMoves = false;
         redHasValidMoves = false;
         for (uint8 i = 0; i < 32; i++) {
@@ -317,7 +322,7 @@ contract CheckersRules is IGameJutsuRules {
     /**
         @param from 0-based index
       */
-    function _canMove(uint8[32] memory cells, uint8 from) private view returns (bool) {
+    function _canMove(uint8[32] memory cells, uint8 from) private pure returns (bool) {
         if (cells[from] == 0)
             return false;
         bool isRed = cells[from] % 16 == 2;
@@ -331,24 +336,20 @@ contract CheckersRules is IGameJutsuRules {
 
 
     /**
+        @param cells array of 32 `uint8`s representing the board
         @param from 0-based index
       */
     function _canJump(uint8[32] memory cells, uint8 from) private pure returns (bool) {
-        bytes memory MOVS = hex"05060607070808000900090A0A0B0B0C0D0E0E0F0F101000110011121213131415161617171818001900191A1A1B1B1C1D1E1E1F1F2020000000000000000000";
-        bytes memory RMVS = hex"0000000000000000010001020203030405060607070808000900090A0A0B0B0C0D0E0E0F0F101000110011121213131415161617171818001900191A1A1B1B1C";
-        bytes memory JMPS = hex"0A00090B0A0C0B000E000D0F0E101F00120011131214130016001517161817001A00191B1A1C1B001E001D1F1E201F0000000000000000000000000000000000";
-        bytes memory RJMP = hex"00000000000000000000000000000000020001030204030006000507060807080A00090B0A0C0B000E000D0F0E101F0012001113121413001600151716181700";
-
         if (cells[from] == 0)
             return false;
         bool isRed = cells[from] % 16 == 2;
         //TODO deduplicate
         bool isKing = cells[from] / 16 == 10;
         uint8 f2 = from * 2;
-        bool redCanJump = RJMP[f2] > 0 && cells[uint8(RJMP[f2]) - 1] == 0 && cells[uint8(RMVS[f2]) - 1] % 16 == 1 ||
-        RJMP[f2 + 1] > 0 && cells[uint8(RJMP[f2 + 1]) - 1] == 0 && cells[uint8(RMVS[f2 + 1]) - 1] % 16 == 1;
-        bool whtCanJump = JMPS[f2] > 0 && cells[uint8(JMPS[f2]) - 1] == 0 && cells[uint8(MOVS[f2]) - 1] % 16 == 2 ||
-        JMPS[f2 + 1] > 0 && cells[uint8(JMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVS[f2 + 1]) - 1] % 16 == 2;
+        bool redCanJump = RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 1 ||
+        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1;
+        bool whtCanJump = JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 2 ||
+        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 2;
         return isRed && redCanJump || !isRed && whtCanJump || isKing && (redCanJump || whtCanJump);
     }
 
