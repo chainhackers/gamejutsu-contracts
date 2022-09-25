@@ -12,8 +12,9 @@ CheckersRules 🙾🙾🙾🙾
 https://polygonscan.com/address/0x6eDe6F6f1ACa5e7A3bdc403EA0ca9889e2095486
 
 ### Entities
-- The arbiter is a contract that is deployed on the blockchain and is used to resolve disputes between players.
-
+- The Arbiter is a contract that is deployed on the blockchain and is used to resolve disputes between players.
+- Game Rules are defined by the game developer and are used by the Arbiter to determine the validity of moves and to transition the game state.
+- The Game Client is a piece of software that is used by the players to play the game. It is responsible for exchanging moves with the opponent,  and for signing them. 
 ## Differences with Magmo's ForceMove
 
 ### Movers and turns    
@@ -27,6 +28,9 @@ GameJutsu protocol: the mover is determined by the game rules
 
 ### Simplifications
 * Outcomes: win/loss or draw, in case of a draw the funds are split between the players
+* Only 2 players are supported
+* The hackathon submission version of the Arbiter includes sample game service functionality - i.e. game proposals, stake collection, logging game events. Real life game services should take care of these things themselves.
+* No alternate moves are not supported - i.e. the game state is not a tree, but a linear sequence of states, game clients don't offer alternate moves to each other.
 
 [//]: # (### Memos)
 [//]: # (alternate moves)
