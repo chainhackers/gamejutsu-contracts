@@ -43,6 +43,12 @@ type Move is uint8;
         return playerIdMatchesTurn && !b.crossesWin && !b.naughtsWin && _isMoveWithinRange(m) && _isCellEmpty(b, m);
     }
 
+    /**
+        @notice What the rules say happens when a particular move is made in a particular state by a particular player
+        @param _gameState GameState struct with the current state of the game: id, nonce, encoded game-specific state
+        @param playerId 0 is crosses, 1 is naughts
+        @param _move is the move represented by `abi.encode`d `Move` struct
+        */
     function transition(GameState calldata _gameState, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
         Board memory b = abi.decode(_gameState.state, (Board));
         uint8 _m = abi.decode(_move, (uint8));

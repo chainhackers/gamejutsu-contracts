@@ -21,6 +21,15 @@ import "./IGameJutsuRules.sol";
     @dev https://codesandbox.io/s/gamejutsu-moves-eip712-mvrh8v?file=/src/index.js
   */
 interface IGameJutsuArbiter {
+    /**
+        @notice What the Arbiter knows about the game
+        @custom rules the contract defining the rules of the game
+        @custom stake the amount of the chain's native currency to stake for the game
+        @custom started whether the game has started
+        @custom finished whether the game has finished
+        @custom players the players and their session addresses
+        @custom playersArray both players addresses
+      */
     struct Game {
         IGameJutsuRules rules;
         uint256 stake;
@@ -30,6 +39,15 @@ interface IGameJutsuArbiter {
         address[2] playersArray;
     }
 
+    /**
+        @notice The way players present their moves to the Arbiter
+        @custom gameId the id of the game
+        @custom nonce the nonce of the move - how many moves have been made before this one, for the first move it is 0
+        @custom player the address of the player making the move
+        @custom oldState the state of the game before the move, the player declares it to be the actual state
+        @custom newState the state of the game after the move, must be a valid transition from the oldState
+        @custom move the move itself, must be consistent with the newState
+      */
     struct GameMove {
         uint256 gameId;
         uint256 nonce;
@@ -39,16 +57,21 @@ interface IGameJutsuArbiter {
         bytes move;
     }
 
+    /**
+        @notice Signed game move with players' signatures
+        @custom gameMove GameMove struct
+        @custom signatures the signatures of the players signing  `abi.encode`d gameMove
+      */
     struct SignedGameMove {
         GameMove gameMove;
         bytes[] signatures;
     }
 
-    event GameStarted(uint256 gameId, uint256 stake, address[2] players);
+    event GameStarted(uint256 gameId, uint256 stake, address[2] players); //TODO: add rules address
     event GameFinished(uint256 gameId, address winner, address loser, bool isDraw);
     event PlayerDisqualified(uint256 gameId, address player);
     event PlayerResigned(uint256 gameId, address player);
-    event GameProposed(uint256 gameId, uint256 stake, address proposer);
+    event GameProposed(uint256 gameId, uint256 stake, address proposer); //TODO: add rules address
     event SessionAddressRegistered(uint256 gameId, address player, address sessionAddress);
     event TimeoutStarted(uint256 gameId, address player, uint256 nonce, uint256 timeout);
     event TimeoutResolved(uint256 gameId, address player, uint256 nonce);
