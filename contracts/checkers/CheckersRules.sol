@@ -257,7 +257,12 @@ contract CheckersRules is IGameJutsuRules {
     function transition(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
         State memory state = abi.decode(_state.state, (State));
         Move memory move = abi.decode(_move, (Move));
-        state.cells[move.to - 1] = state.cells[move.from - 1];
+        uint8 newCellValue = state.cells[move.from - 1];
+        bool isRed = state.cells[move.from - 1] % 16 == 2;
+        if (_lastRow(move.to, isRed)) {
+            newCellValue = newCellValue | 0xA0;
+        }
+        state.cells[move.to - 1] = newCellValue;
         state.cells[move.from - 1] = 0;
         if (move.isJump) {
             state.cells[(move.from + move.to) / 2 - (move.from % 8 > 4 ? 1 : 0)] = 0;
@@ -294,6 +299,15 @@ contract CheckersRules is IGameJutsuRules {
             2, 2, 2, 2,
             2, 2, 2, 2
             ], false, 0));
+    }
+
+    /**
+        @notice Check if the destination cell belongs to the last row for the specified color
+        @param to Destination cell index, 1-based
+        @param isRed The color of the moving checker
+        */
+    function _lastRow(uint8 to, bool isRed) private pure returns (bool) {
+        return isRed && to <= 4 || !isRed && to >= 29;
     }
 
     function _validMovesExist(uint8[32] memory cells) private pure returns (bool whiteHasValidMoves, bool redHasValidMoves) {
