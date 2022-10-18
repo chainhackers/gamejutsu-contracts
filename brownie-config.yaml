@@ -4,4 +4,4 @@ compiler:
     remappings:
       - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.8.0-rc.0/contracts"
 dependencies:
-  - OpenZeppelin/openzeppelin-contracts@4.8.0-rc.0
+  - OpenZeppelin/openzeppelin-contracts@4.8.0-rc.1

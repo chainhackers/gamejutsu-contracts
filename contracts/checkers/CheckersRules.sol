@@ -272,6 +272,13 @@ contract CheckersRules is IGameJutsuRules {
         } else {
             state.redMoves = !state.redMoves;
         }
+
+        (bool whiteHasMoves, bool redHasMoves) = _validMovesExist(state.cells);
+        if (state.redMoves && !redHasMoves) {
+            state.winner = 1;
+        } else if (!state.redMoves && !whiteHasMoves) {
+            state.winner = 2;
+        }
         return GameState(_state.gameId, _state.nonce + 1, abi.encode(state));
     }
 

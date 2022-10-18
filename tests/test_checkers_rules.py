@@ -64,7 +64,7 @@ W, R = 0, 1  # playerId
     from_cell=st('uint8', min_value=1, max_value=32),
     to_cell=st('uint8', min_value=1, max_value=32),
     red_moves=st('bool'),
-    nonce=st('uint256', max_value=100)
+    nonce=st('uint256', max_value=10)
 )
 def test_is_valid_move_empty_board(rules, game_id, empty_cells, from_cell, to_cell, red_moves, nonce):
     empty_board = [empty_cells, red_moves, 0]
@@ -293,7 +293,7 @@ def test_transition_single_move(rules, game_id):
     assert next_cells[15 - 1] == 0
     assert next_cells[10 - 1] == 2
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2  # red wins because no white pieces left
 
     nonce = 5
     cells[15 - 1] = 1
@@ -311,7 +311,7 @@ def test_transition_single_move(rules, game_id):
     assert next_cells[15 - 1] == 0
     assert next_cells[11 - 1] == 1
     assert next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 1
 
     nonce = 10
     cells[15 - 1] = 2
@@ -329,7 +329,7 @@ def test_transition_single_move(rules, game_id):
     assert next_cells[15 - 1] == 0
     assert next_cells[19 - 1] == 2
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2
 
     move = [15, 18, False, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
@@ -340,7 +340,7 @@ def test_transition_single_move(rules, game_id):
     assert next_cells[15 - 1] == 0
     assert next_cells[18 - 1] == 2
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2
 
 
 def test_transition_single_red_jump(rules, game_id):
@@ -505,7 +505,7 @@ def test_transition_double_red_jump(rules, game_id):
     assert next_cells[18 - 1] == 0
     assert next_cells[11 - 1] == 2
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2
 
 
 def test_transition_double_white_jump(rules, game_id):
@@ -561,7 +561,7 @@ def test_transition_double_white_jump(rules, game_id):
     assert next_cells[18 - 1] == 0
     assert next_cells[27 - 1] == 1
     assert next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 1
 
 
 def test_transition_red_becomes_king(rules, game_id):
@@ -594,7 +594,7 @@ def test_transition_red_becomes_king(rules, game_id):
     assert next_cells[6 - 1] == 0
     assert next_cells[1 - 1] == 162
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2
 
     move = encode_move(fr=6,
                        to=2,
@@ -608,7 +608,7 @@ def test_transition_red_becomes_king(rules, game_id):
     assert next_cells[6 - 1] == 0
     assert next_cells[2 - 1] == 162
     assert not next_move_is_red
-    assert next_winner == 0
+    assert next_winner == 2
 
 
 def test_transition_single_white_jump_becomes_king(rules, game_id):
@@ -663,6 +663,71 @@ def test_transition_single_white_jump_becomes_king(rules, game_id):
     assert next_cells[31 - 1] == 161
     assert next_move_is_red
     assert next_winner == 0
+
+
+def test_no_more_moves(rules, game_id):
+    #                  1       2       3       4
+    #      1  01 │███│   │███│   │███│   │███│   │ 04 4
+    #      5  05 │   │███│   │███│   │███│   │███│ 08 8
+    #      9  09 │███│ o │███│ o │███│ o │███│ o │ 0C 12
+    #      13 0D │ o │███│ o │███│ o │███│ o │███│ 10 16
+    #      17 11 │███│ x │███│ x │███│ x │███│ x │ 14 20
+    #      21 15 │ x │███│ x │███│ x │███│ x │███│ 18 24
+    #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
+    #      29 1D │   │███│   │███│   │███│ x │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [0] * 8 + [1] * 8 + [2] * 8 + [0] * 7 + [2]
+    nonce = 10
+    board = encode_board(cells=cells, red_moves=True)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=32,
+                       to=28,
+                       is_jump=False,
+                       pass_move=True)
+    assert rules.isValidMove(game_state, R, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[32 - 1] == 0
+    assert next_cells[28 - 1] == 2
+    assert not next_move_is_red
+    assert next_winner == 2
+
+    #                  1       2       3       4
+    #      1  01 │███│   │███│   │███│   │███│ o │ 04 4
+    #      5  05 │   │███│   │███│   │███│ . │███│ 08 8
+    #      9  09 │███│   │███│   │███│ x │███│ x │ 0C 12
+    #      13 0D │   │███│   │███│   │███│   │███│ 10 16
+    #      17 11 │███│   │███│   │███│   │███│   │ 14 20
+    #      21 15 │   │███│   │███│   │███│   │███│ 18 24
+    #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
+    #      29 1D │   │███│   │███│   │███│   │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [0] * 32
+    cells[4 - 1] = 1
+    cells[11 - 1] = 2
+    cells[12 - 1] = 2
+    nonce = 10
+    board = encode_board(cells=cells, red_moves=True)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=12,
+                       to=8,
+                       is_jump=False,
+                       pass_move=True)
+    assert rules.isValidMove(game_state, R, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[12 - 1] == 0
+    assert next_cells[8 - 1] == 2
+    assert not next_move_is_red
+    assert next_winner == 2
 
 
 def mov(fr: int, to: int, is_jump: bool, pass_move: bool) -> Tuple[int, int, bool, bool]:
