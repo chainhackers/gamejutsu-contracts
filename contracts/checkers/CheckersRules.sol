@@ -274,9 +274,9 @@ contract CheckersRules is IGameJutsuRules {
         }
 
         (bool whiteHasMoves, bool redHasMoves) = _validMovesExist(state.cells);
-        if (state.redMoves && !redHasMoves) {
+        if (state.redMoves && !redHasMoves && !_validJumpExists(state.cells, state.redMoves)) {//TODO test valid jumps checks for setting the winner
             state.winner = 1;
-        } else if (!state.redMoves && !whiteHasMoves) {
+        } else if (!state.redMoves && !whiteHasMoves && !_validJumpExists(state.cells, state.redMoves)) {
             state.winner = 2;
         }
         return GameState(_state.gameId, _state.nonce + 1, abi.encode(state));
@@ -330,7 +330,7 @@ contract CheckersRules is IGameJutsuRules {
         }
     }
 
-    function _validJumpExists(uint8[32] memory cells, bool forRed) private pure returns (bool) {
+    function _validJumpExists(uint8[32] memory cells, bool forRed) public pure returns (bool) {
         for (uint8 i = 0; i < 32; i++) {
             bool isRed = cells[i] % 16 == 2;
             if (isRed == forRed && _canJump(cells, i)) {
@@ -360,7 +360,7 @@ contract CheckersRules is IGameJutsuRules {
         @param cells array of 32 `uint8`s representing the board
         @param from 0-based index
       */
-    function _canJump(uint8[32] memory cells, uint8 from) private pure returns (bool) {
+    function _canJump(uint8[32] memory cells, uint8 from) public pure returns (bool) {
         if (cells[from] == 0)
             return false;
         bool isRed = cells[from] % 16 == 2;
@@ -368,10 +368,14 @@ contract CheckersRules is IGameJutsuRules {
         bool isKing = cells[from] / 16 == 10;
         uint8 f2 = from * 2;
         bool redCanJump = RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 1 ||
-        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1;
+        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1 ||
+        isKing && (JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 1 ||
+        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 1);
         bool whtCanJump = JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 2 ||
-        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 2;
-        return isRed && redCanJump || !isRed && whtCanJump || isKing && (redCanJump || whtCanJump);
+        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 2 ||
+        isKing && (RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 2 ||
+        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 2);
+        return isRed && redCanJump || !isRed && whtCanJump;
     }
 
 

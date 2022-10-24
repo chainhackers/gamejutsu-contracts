@@ -730,6 +730,42 @@ def test_no_more_moves(rules, game_id):
     assert next_winner == 2
 
 
+def test_white_king_jumps(rules, game_id):
+    #                  1       2       3       4
+    #      1  01 │███│   │███│ o │███│   │███│   │ 04 4
+    #      5  05 │ o │███│   │███│ o │███│   │███│ 08 8
+    #      9  09 │███│ o │███│ o │███│   │███│ o │ 0C 12
+    #      13 0D │ o │███│ o │███│ o │███│   │███│ 10 16
+    #      17 11 │███│ x │███│   │███│   │███│   │ 14 20
+    #      21 15 │ x │███│ x │███│ x │███│   │███│ 18 24
+    #      25 19 │███│ x │███│   │███│ O │███│ x │ 1C 28
+    #      29 1D │ x │███│   │███│   │███│   │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 2, 0, 0, 0, 2, 2, 2, 0, 2, 0, 161, 2, 2, 0, 0, 0]
+    print(list(enumerate(cells)))
+    nonce = 36
+    board = encode_board(cells=cells, red_moves=False)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=27,
+                       to=18,
+                       is_jump=True,
+                       pass_move=True)
+    # assert rules._canJump(cells, 27 - 1)
+    # assert not rules._canJump(cells, 18 - 1)
+    assert rules.isValidMove(game_state, W, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells[27 - 1] == 0
+    assert next_cells[23 - 1] == 0
+    assert next_cells[18 - 1] == 161
+    assert next_move_is_red
+    assert next_winner == 0
+
+
 def mov(fr: int, to: int, is_jump: bool, pass_move: bool) -> Tuple[int, int, bool, bool]:
     return fr, to, is_jump, pass_move
 
