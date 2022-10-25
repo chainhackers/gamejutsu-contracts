@@ -329,13 +329,13 @@ def red_eater_position_to_cells(pos: int) -> list[int]:
 
 
 @given(
-    cells_and_pos=strategies.integers(min_value=1, max_value=32).map(lambda i: (red_eater_position_to_cells(i), i+1)),
+    cells_and_pos=strategies.integers(min_value=1, max_value=32).map(lambda i: (red_eater_position_to_cells(i), i)),
     nonce=st('uint256', max_value=100)
 )
 def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
-    cells, pos = cells_and_pos
+    cells, zero_based_pos = cells_and_pos
     print(f"cells: {cells}")
-    print(f"pos: {pos}")
+    print(f"zero_based_pos: {zero_based_pos}")
 
 
     player_who_cannot_move = W
@@ -348,13 +348,15 @@ def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
     is_jump = True
     pass_move = True
 
-    for jump in possible_jumps(pos, red=True, king=True):
+    for jump in possible_jumps(zero_based_pos, red=True, king=True):
         target, eaten = jump
-        move = [pos, target, is_jump, pass_move]
+        print(f"target: {target}")
+        print(f"eaten: {eaten}")
+        move = [zero_based_pos+1, target+1, is_jump, pass_move]
         move_encoded = encode_abi(MOVE_TYPES, move)
         assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
 
-        is_valid = occupied_by_red(pos, cells) and \
+        is_valid = occupied_by_red(zero_based_pos, cells) and \
                    unoccupied(target, cells) and \
                    occupied_by_white(eaten, cells)
 
