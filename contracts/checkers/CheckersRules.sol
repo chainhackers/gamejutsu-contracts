@@ -74,25 +74,27 @@ contract CheckersRules is IGameJutsuRules {
     //    bytes public constant RMOV_1D = hex"1900191A1A1B1B1C";
     bytes public constant RMOVS = hex"0000000000000000010001020203030405060607070808000900090A0A0B0B0C0D0E0E0F0F101000110011121213131415161617171818001900191A1A1B1B1C";
 
-    //    bytes public constant JUMP_01 = hex"0A00090B0A0C0B00";
-    //    bytes public constant JUMP_05 = hex"0E000D0F0E101F00";
-    //    bytes public constant JUMP_09 = hex"1200111312141300";
-    //    bytes public constant JUMP_0D = hex"1600151716181700";
-    //    bytes public constant JUMP_11 = hex"1A00191B1A1C1B00";
-    //    bytes public constant JUMP_15 = hex"1E001D1F1E201F00";
+    //    bytes public constant JUMP_01 = hex"000A090B0A0C0B00";
+    //    bytes public constant JUMP_05 = hex"000E0D0F0E100F00";
+    //    bytes public constant JUMP_09 = hex"0012111312141300";
+    //    bytes public constant JUMP_0D = hex"0016151716181700";
+    //    bytes public constant JUMP_11 = hex"001A191B1A1C1B00";
+    //    bytes public constant JUMP_15 = hex"001E1D1F1E201F00";
     //    bytes public constant JUMP_19 = hex"0000000000000000";
     //    bytes public constant JUMP_1D = hex"0000000000000000";
-    bytes public constant JUMPS = hex"0A00090B0A0C0B000E000D0F0E101F00120011131214130016001517161817001A00191B1A1C1B001E001D1F1E201F0000000000000000000000000000000000";
+
+    bytes public constant JUMPS = hex"000A090B0A0C0B00000E0D0F0E100F0000121113121413000016151716181700001A191B1A1C1B00001E1D1F1E201F0000000000000000000000000000000000";
 
     //    bytes public constant RJMP_01 = hex"0000000000000000";
     //    bytes public constant RJMP_05 = hex"0000000000000000";
-    //    bytes public constant RJMP_09 = hex"0200010302040300";
-    //    bytes public constant RJMP_0D = hex"0600050706080708";
-    //    bytes public constant RJMP_11 = hex"0A00090B0A0C0B00";
-    //    bytes public constant RJMP_15 = hex"0E000D0F0E101F00";
-    //    bytes public constant RJMP_19 = hex"1200111312141300";
-    //    bytes public constant RJMP_1D = hex"1600151716181700";
-    bytes public constant RJUMP = hex"00000000000000000000000000000000020001030204030006000507060807080A00090B0A0C0B000E000D0F0E101F0012001113121413001600151716181700";
+    //    bytes public constant RJMP_09 = hex"0002010302040300";
+    //    bytes public constant RJMP_0D = hex"0006050706080700";
+    //    bytes public constant RJMP_11 = hex"000A090B0A0C0B00";
+    //    bytes public constant RJMP_15 = hex"000E0D0F0E100F00";
+    //    bytes public constant RJMP_19 = hex"0012111312141300";
+    //    bytes public constant RJMP_1D = hex"0016151716181700";
+
+    bytes public constant RJUMP = hex"0000000000000000000000000000000000020103020403000006050706080700000A090B0A0C0B00000E0D0F0E100F0000121113121413000016151716181700";
 
     //             1       2       3       4
     // 1     │███│ o │███│ o │███│ o │███│ o │ 04
@@ -367,6 +369,7 @@ contract CheckersRules is IGameJutsuRules {
         //TODO deduplicate
         bool isKing = cells[from] / 16 == 10;
         uint8 f2 = from * 2;
+//        bool redCanJump = RJUMP[f2 + 1] > 0;// && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1;
         bool redCanJump = RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 1 ||
         RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1 ||
         isKing && (JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 1 ||

@@ -9,7 +9,7 @@
 __author__ = ["Gene A. Tsvigun"]
 __license__ = "MIT"
 
-from typing import List, Tuple
+from typing import List, Tuple, Generator
 import pytest
 from brownie import interface
 from eth_abi import encode_abi, decode_abi
@@ -21,7 +21,8 @@ from hypothesis import strategies
 
 @pytest.fixture(scope='module')
 def rules(CheckersRules, dev):
-    return interface.IGameJutsuRules(dev.deploy(CheckersRules))
+    # return interface.IGameJutsuRules(dev.deploy(CheckersRules))
+    return dev.deploy(CheckersRules)
 
 
 @pytest.fixture(scope='session')
@@ -226,41 +227,138 @@ def test_is_valid_jump_single_white(rules, game_id, cells, from_cell, to_cell, r
 #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
 #      29 1D │   │███│   │███│   │███│   │███│ 20 32
 #             1D      1E      1F      20
+#                  1       2       3       4
+#      1  01 │███│   │███│   │███│   │███│   │ 04 4
+#          5  05 │   │███│ . │███│   │███│ . │███│ 08 8
+#      9  09 │███│   │███│ x │███│ x │███│   │ 0C 12
+#          13 0D │   │███│   │███│ o │███│   │███│ 10 16
+#      17 11 │███│   │███│ x │███│ x │███│   │ 14 20
+#          21 15 │   │███│ . │███│   │███│ . │███│ 18 24
+#      25 19 │███│   │███│   │███│   │███│   │ 1C 28
+#          29 1D │   │███│   │███│   │███│   │███│ 20 32
+#             1D      1E      1F      20
+
+# @given(
+#     cells=(strategies.tuples(
+#         strategies.integers(min_value=1, max_value=32),
+#         strategies.booleans(),
+#         strategies.booleans(),
+#         strategies.booleans(),
+#     ).map(
+#         lambda t: [  # t is (a random index from 1 to 32, and 3 random booleans)
+#             2 if j + 1 == t[0] else
+#             2 if j + 1 == t[0] - 9 and t[1] or
+#                  j + 1 == t[0] - 7 and t[2] or
+#                  j + 1 == t[0] + 7 and t[3] or
+#                  j + 1 == t[0] + 9 else
+#             0 for j in range(32)])),
+#     from_cell=st('uint8', min_value=1, max_value=32),
+#     to_cell=st('uint8', min_value=1, max_value=32),
+#     red_moves=st('bool'),
+#     nonce=st('uint256', max_value=100)
+# )
+# def test_is_valid_jump_single_red(rules, game_id, cells, from_cell, to_cell, red_moves, nonce):
+#     player_who_cannot_move = W
+#     board = [cells, red_moves, 0]
+#     board_encoded = encode_abi(STATE_TYPES, board)
+#     game_state = [game_id, nonce, board_encoded]
+#
+#     move = [from_cell, to_cell, True, False]
+#     move_encoded = encode_abi(MOVE_TYPES, move)
+#     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
+#
+#     is_valid = not red_moves and occupied_by_red(from_cell, cells) and unoccupied(to_cell, cells) and (
+#             to_cell == jump_down_left(from_cell) and occupied_by_white(down_left(from_cell), cells) or
+#             to_cell == jump_down_right(from_cell) and occupied_by_white(down_right(from_cell), cells)
+#     )
+#     assert rules.isValidMove(game_state, R, move_encoded) == is_valid
+#
+
+# 0-based
+def possible_jumps(i: int, red: bool, king: bool) -> Generator[tuple[int, int], None, None]:
+    row_num = i // 4
+    column_num = i % 4
+
+    target_rows = [row_num - 2, -1] if red else [row_num + 2, -1]
+    eaten__rows = [row_num - 1, -1] if red else [row_num + 1, -1]
+    if king:
+        target_rows = [row_num - 2, row_num + 2]
+        eaten__rows = [row_num - 1, row_num + 1]
+
+    target_columns = [ci for ci in [column_num - 1, column_num + 1]]
+    eaten__columns = [row_num % 2 + column_num + d for d in [- 1, 0]]
+
+    for i in range(2):
+        if target_rows[i] < 0 or target_rows[i] > 7:
+            target_rows[i] = None
+            eaten__rows[i] = None
+        if target_columns[i] < 0 or target_columns[i] > 3:
+            target_columns[i] = None
+            eaten__columns[i] = None
+
+    for ci in range(2):
+        for ri in range(2):
+            if target_rows[ri] and target_columns[ci]:
+                target = target_rows[ri] * 4 + target_columns[ci]
+                eaten = eaten__rows[ri] * 4 + eaten__columns[ci]
+                yield target, eaten
+
+
+def possible_moves(i: int, red: bool, king: bool) -> Generator[int, None, None]:
+    row_num = i // 4
+    column_num = i % 4
+
+    rows = [row_num - 1, -1] if red else [row_num + 1, -1]
+    if king:
+        rows = [row_num - 1, row_num + 1]
+
+    columns = [row_num % 2 + column_num + d for d in [- 1, 0]]
+
+    for ci in range(2):
+        for ri in range(2):
+            if 0 <= rows[ri] <= 7 and 0 <= columns[ci] <= 3:
+                yield rows[ri] * 4 + columns[ci]
+
+
+def red_eater_position_to_cells(pos: int) -> list[int]:
+    cells = [0] * 32
+    cells[pos] = 162
+    for m in possible_moves(pos, True, False):
+        cells[m] = 1
+    return cells
+
 
 @given(
-    cells=(strategies.tuples(
-        strategies.integers(min_value=1, max_value=32),
-        strategies.booleans(),
-        strategies.booleans(),
-        strategies.booleans(),
-    ).map(
-        lambda t: [
-            1 if j + 1 == t[0] else
-            2 if j + 1 == t[0] - 9 and t[1] or
-                 j + 1 == t[0] - 7 and t[2] or
-                 j + 1 == t[0] + 7 and t[3] or
-                 j + 1 == t[0] + 9 else
-            0 for j in range(32)])),
-    from_cell=st('uint8', min_value=1, max_value=32),
-    to_cell=st('uint8', min_value=1, max_value=32),
-    red_moves=st('bool'),
+    cells_and_pos=strategies.integers(min_value=1, max_value=32).map(lambda i: (red_eater_position_to_cells(i), i+1)),
     nonce=st('uint256', max_value=100)
 )
-def test_is_valid_jump_single_red(rules, game_id, cells, from_cell, to_cell, red_moves, nonce):
+def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
+    cells, pos = cells_and_pos
+    print(f"cells: {cells}")
+    print(f"pos: {pos}")
+
+
     player_who_cannot_move = W
-    board = [cells, red_moves, 0]
+    red_moves = True
+    winner = 0
+    board = [cells, red_moves, winner]
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = [from_cell, to_cell, True, False]
-    move_encoded = encode_abi(MOVE_TYPES, move)
-    assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
+    is_jump = True
+    pass_move = True
 
-    is_valid = not red_moves and occupied_by_red(from_cell, cells) and unoccupied(to_cell, cells) and (
-            to_cell == jump_down_left(from_cell) and occupied_by_white(down_left(from_cell), cells) or
-            to_cell == jump_down_right(from_cell) and occupied_by_white(down_right(from_cell), cells)
-    )
-    assert rules.isValidMove(game_state, R, move_encoded) == is_valid
+    for jump in possible_jumps(pos, red=True, king=True):
+        target, eaten = jump
+        move = [pos, target, is_jump, pass_move]
+        move_encoded = encode_abi(MOVE_TYPES, move)
+        assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
+
+        is_valid = occupied_by_red(pos, cells) and \
+                   unoccupied(target, cells) and \
+                   occupied_by_white(eaten, cells)
+
+        assert rules.isValidMove(game_state, R, move_encoded) == is_valid
 
 
 def test_transition_single_move(rules, game_id):
@@ -762,6 +860,58 @@ def test_white_king_jumps(rules, game_id):
     assert next_cells[27 - 1] == 0
     assert next_cells[23 - 1] == 0
     assert next_cells[18 - 1] == 161
+    assert next_move_is_red
+    assert next_winner == 0
+
+
+def test_red_jumps_23_16(rules, game_id):
+    #                  1       2       3       4
+    #      1  01 │███│ o │███│ o │███│ o │███│ o │ 04 4
+    #      5  05 │ o │███│ o │███│ o │███│ o │███│ 08 8
+    #      9  09 │███│   │███│   │███│   │███│ o │ 0C 12
+    #      13 0D │   │███│ o │███│   │███│   │███│ 10 16
+    #      17 11 │███│ x │███│   │███│ o │███│ x │ 14 20
+    #      21 15 │ x │███│   │███│ x │███│   │███│ 18 24
+    #      25 19 │███│   │███│ x │███│ x │███│ x │ 1C 28
+    #      29 1D │ x │███│ x │███│ x │███│ x │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [1, 1, 1, 1,
+             1, 1, 1, 1,
+             0, 0, 0, 1,
+             0, 1, 0, 0,
+             2, 0, 1, 2,
+             2, 0, 2, 0,
+             0, 2, 2, 2,
+             2, 2, 2, 2]
+
+    new_cells = (1, 1, 1, 1,
+                 1, 1, 1, 1,
+                 0, 0, 0, 1,
+                 0, 1, 0, 2,
+                 2, 0, 0, 2,
+                 2, 0, 0, 0,
+                 0, 2, 2, 2,
+                 2, 2, 2, 2)
+    nonce = 8
+    board = encode_board(cells=cells, red_moves=True)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=23,
+                       to=16,
+                       is_jump=True,
+                       pass_move=False)
+    assert rules._canJump(cells, 17 - 1)
+    assert rules._canJump(cells, 23 - 1)
+    assert rules.isValidMove(game_state, R, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells == new_cells
+    assert next_cells[23 - 1] == 0
+    assert next_cells[19 - 1] == 0
+    assert next_cells[16 - 1] == 2
     assert next_move_is_red
     assert next_winner == 0
 
