@@ -282,7 +282,7 @@ def possible_moves(position: int, red: bool, king: bool) -> Generator[int, None,
     if king:
         rows = [row_num - 1, row_num + 1]
 
-    columns = [ (-row_num % 2) + column_num + d for d in [0, 1]]
+    columns = [ -(row_num % 2) + column_num + d for d in [0, 1]]
 
     for ci in range(2):
         for ri in range(2):
@@ -302,7 +302,8 @@ def possible_jumps(position: int, red: bool, king: bool) -> Generator[tuple[int,
         eaten__rows = [row_num - 1, row_num + 1]
 
     target_columns = [ci for ci in [column_num - 1, column_num + 1]]
-    eaten__columns = [(-row_num % 2) + column_num + d for d in [0, 1]]
+    eaten__columns = [-(row_num % 2) + column_num + d for d in [0, 1]]
+
 
     for ci in range(2):
         for ri in range(2):
@@ -310,35 +311,6 @@ def possible_jumps(position: int, red: bool, king: bool) -> Generator[tuple[int,
                 target = target_rows[ri] * 4 + target_columns[ci]
                 eaten = eaten__rows[ri] * 4 + eaten__columns[ci]
                 yield target, eaten
-
-
-def has_jump(cells: list[int], position: int) -> bool:
-    if cells[position] == 0:
-        return False
-
-    red = cells[position] % 16 == 2
-    king = cells[position] // 10 == 16
-
-    row_num = position // 4
-    column_num = position % 4
-
-    row_t_inc = -2 if red else 2
-    column_e_inc = 0 if row_num % 2 else -1
-    to_eat = 1 if red else 2
-
-    def am_eat_when_move(cells, to_eat, target, eaten):
-        return 0 <= target <= 31 and cells[target] == 0 and cells[eaten] % 16 == to_eat
-
-    def has_jump_in_direction(row_t_inc):
-        row_e_inc = row_t_inc // 2
-        position_t_b = (row_num + row_t_inc) * 4 + column_num
-        position_e_b = (row_num + row_e_inc) * 4 + column_num
-        if (am_eat_when_move(cells, to_eat, position_t_b - 1, position_e_b + column_e_inc)) \
-                or am_eat_when_move(cells, to_eat, position_t_b + 1, position_e_b + column_e_inc + 1):
-            return True
-        return False
-
-    return has_jump_in_direction(row_t_inc) or (king and has_jump_in_direction(-row_t_inc))
 
 
 def red_eater_position_to_cells(pos: int) -> list[int]:
@@ -350,7 +322,7 @@ def red_eater_position_to_cells(pos: int) -> list[int]:
 
 
 @given(
-    cells_and_pos=strategies.integers(min_value=1, max_value=32).map(lambda i: (red_eater_position_to_cells(i), i)),
+    cells_and_pos=strategies.integers(min_value=0, max_value=31).map(lambda i: (red_eater_position_to_cells(i), i)),
     nonce=st('uint256', max_value=100)
 )
 def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
@@ -485,42 +457,7 @@ def test_red_king_jumps_9_2_5(rules, game_id):
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
     assert not rules.isValidMove(game_state, R, move_encoded)
-
-
-def test_red_king_jumps_21_14_19(rules, game_id):
-    #                  1       2       3       4
-    #      1  01 │███│   │███│   │███│   │███│   │ 04 4
-    #      5  05 │   │███│   │███│   │███│   │███│ 08 8
-    #      9  09 │███│   │███│   │███│   │███│   │ 0C 12
-    #      13 0D │   │███│ . │███│   │███│   │███│ 10 16
-    #      17 11 │███│   │███│ o │███│ o │███│   │ 14 20
-    #      21 15 │ X │███│   │███│   │███│   │███│ 18 24
-    #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
-    #      29 1D │   │███│   │███│   │███│   │███│ 20 32
-    #             1D      1E      1F      20
-
-    cells = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 162, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    # zero_based_pos: 20
-    # target: 13
-    # eaten: 18
-
-    nonce = 0
-    red_moves = True
-    winner = 0
-    board = [cells, red_moves, winner]
-    board_encoded = encode_abi(STATE_TYPES, board)
-    game_state = [game_id, nonce, board_encoded]
-
-    player_who_cannot_move = W
-    from_cell = 21
-    to_cell = 14
-    is_jump = True
-    pass_move = True
-    move = [from_cell, to_cell, is_jump, pass_move]
-    move_encoded = encode_abi(MOVE_TYPES, move)
-    assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
-    assert rules.isValidMove(game_state, R, move_encoded)
-
+    
 
 def test_transition_single_move(rules, game_id):
     #                  1       2       3       4
