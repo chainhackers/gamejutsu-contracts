@@ -343,7 +343,7 @@ contract CheckersRules is IGameJutsuRules {
             ((int8(row) + destinationRowDiff)  > 7)) {
                 return false;
             }
-        if ((int8(column) - 1 < 0) || (int8(column) - 1 > 3) ) {
+        if ((int8(column) - 1 < 0) || (int8(column) + 1 > 3) ) {
             return false;
         }
         int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
