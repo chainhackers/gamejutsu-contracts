@@ -487,18 +487,22 @@ def test_red_king_jumps_9_2_5(rules, game_id):
     assert not rules.isValidMove(game_state, R, move_encoded)
 
 
-def test_red_king_jumps_10_1_6(rules, game_id):
+def test_red_king_jumps_21_14_19(rules, game_id):
     #                  1       2       3       4
     #      1  01 │███│   │███│   │███│   │███│   │ 04 4
-    #      5  05 │ o │███│ o │███│   │███│   │███│ 08 8
-    #      9  09 │███│   │███│ X │███│   │███│   │ 0C 12
-    #      13 0D │   │███│   │███│   │███│   │███│ 10 16
-    #      17 11 │███│   │███│   │███│   │███│   │ 14 20
-    #      21 15 │   │███│   │███│   │███│   │███│ 18 24
+    #      5  05 │   │███│   │███│   │███│   │███│ 08 8
+    #      9  09 │███│   │███│   │███│   │███│   │ 0C 12
+    #      13 0D │   │███│ . │███│   │███│   │███│ 10 16
+    #      17 11 │███│   │███│ o │███│ o │███│   │ 14 20
+    #      21 15 │ X │███│   │███│   │███│   │███│ 18 24
     #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
     #      29 1D │   │███│   │███│   │███│   │███│ 20 32
     #             1D      1E      1F      20
-    cells = [0, 0, 0, 0, 1, 1, 0, 0, 0, 162, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+    cells = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 162, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # zero_based_pos: 20
+    # target: 13
+    # eaten: 18
 
     nonce = 0
     red_moves = True
@@ -508,8 +512,8 @@ def test_red_king_jumps_10_1_6(rules, game_id):
     game_state = [game_id, nonce, board_encoded]
 
     player_who_cannot_move = W
-    from_cell = 10
-    to_cell = 1
+    from_cell = 21
+    to_cell = 14
     is_jump = True
     pass_move = True
     move = [from_cell, to_cell, is_jump, pass_move]
