@@ -275,9 +275,9 @@ def test_is_valid_jump_single_white(rules, game_id, cells, from_cell, to_cell, r
 #
 
 # 0-based
-def possible_jumps(i: int, red: bool, king: bool) -> Generator[tuple[int, int], None, None]:
-    row_num = i // 4
-    column_num = i % 4
+def possible_jumps(position: int, red: bool, king: bool) -> Generator[tuple[int, int], None, None]:
+    row_num = position // 4
+    column_num = position % 4
 
     target_rows = [row_num - 2, -1] if red else [row_num + 2, -1]
     eaten__rows = [row_num - 1, -1] if red else [row_num + 1, -1]
@@ -288,25 +288,47 @@ def possible_jumps(i: int, red: bool, king: bool) -> Generator[tuple[int, int], 
     target_columns = [ci for ci in [column_num - 1, column_num + 1]]
     eaten__columns = [row_num % 2 + column_num + d for d in [- 1, 0]]
 
-    for i in range(2):
-        if target_rows[i] < 0 or target_rows[i] > 7:
-            target_rows[i] = None
-            eaten__rows[i] = None
-        if target_columns[i] < 0 or target_columns[i] > 3:
-            target_columns[i] = None
-            eaten__columns[i] = None
-
     for ci in range(2):
         for ri in range(2):
-            if target_rows[ri] and target_columns[ci]:
+            if (0 <= target_rows[ri] <= 7) and (0 <= target_columns[ci] <= 3):  
                 target = target_rows[ri] * 4 + target_columns[ci]
                 eaten = eaten__rows[ri] * 4 + eaten__columns[ci]
                 yield target, eaten
 
 
-def possible_moves(i: int, red: bool, king: bool) -> Generator[int, None, None]:
-    row_num = i // 4
-    column_num = i % 4
+
+def has_jump(cells: list[int], position: int) -> bool:
+    if cells[position] == 0:
+        return False
+
+    red = cells[position] % 16 == 2
+    king = cells[position] // 10 == 16
+
+    row_num = position // 4
+    column_num = position % 4
+
+    row_t_inc = -2 if red else 2
+    column_e_inc = -1 if row_num % 2 else 0
+    to_eat = 1 if red else 2
+
+    def am_eat_when_move(cells, to_eat, target, eaten):
+        return 0 <= target <= 31 and cells[target] == 0 and cells[eaten] % 16 == to_eat
+
+    def has_jump_in_direction(row_t_inc):
+        row_e_inc = row_t_inc // 2
+        position_t_b = (row_num + row_t_inc) * 4 + column_num
+        position_e_b = (row_num + row_e_inc) * 4 + column_num
+        if (am_eat_when_move(cells, to_eat, position_t_b - 1, position_e_b + column_e_inc)) \
+                or am_eat_when_move(cells, to_eat, position_t_b + 1, position_e_b + column_e_inc + 1):
+            return True
+        return False    
+
+    return has_jump_in_direction(row_t_inc) or (king and has_jump_in_direction(-row_t_inc))
+
+
+def possible_moves(position: int, red: bool, king: bool) -> Generator[int, None, None]:
+    row_num = position // 4
+    column_num = position % 4
 
     rows = [row_num - 1, -1] if red else [row_num + 1, -1]
     if king:
@@ -316,7 +338,7 @@ def possible_moves(i: int, red: bool, king: bool) -> Generator[int, None, None]:
 
     for ci in range(2):
         for ri in range(2):
-            if 0 <= rows[ri] <= 7 and 0 <= columns[ci] <= 3:
+            if (0 <= rows[ri] <= 7) and (0 <= columns[ci] <= 3):
                 yield rows[ri] * 4 + columns[ci]
 
 
@@ -361,6 +383,7 @@ def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
                    occupied_by_white(eaten, cells)
 
         assert rules.isValidMove(game_state, R, move_encoded) == is_valid
+        assert is_valid == has_jump(cells, zero_based_pos)
 
 
 def test_transition_single_move(rules, game_id):
