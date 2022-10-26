@@ -54,48 +54,6 @@ contract CheckersRules is IGameJutsuRules {
         bool passMoveToOpponent;
     }
 
-    //    bytes public constant MOVE_01 = hex"0506060707080800";
-    //    bytes public constant MOVE_05 = hex"0900090A0A0B0B0C";
-    //    bytes public constant MOVE_09 = hex"0D0E0E0F0F101000";
-    //    bytes public constant MOVE_0D = hex"1100111212131314";
-    //    bytes public constant MOVE_11 = hex"1516161717181800";
-    //    bytes public constant MOVE_15 = hex"1900191A1A1B1B1C";
-    //    bytes public constant MOVE_19 = hex"1D1E1E1F1F202000";
-    //    bytes public constant MOVE_1D = hex"0000000000000000";
-    bytes public constant MOVES = hex"05060607070808000900090A0A0B0B0C0D0E0E0F0F101000110011121213131415161617171818001900191A1A1B1B1C1D1E1E1F1F2020000000000000000000";
-
-    //    bytes public constant RMOV_01 = hex"0000000000000000";
-    //    bytes public constant RMOV_05 = hex"0100010202030304";
-    //    bytes public constant RMOV_09 = hex"0506060707080800";
-    //    bytes public constant RMOV_0D = hex"0900090A0A0B0B0C";
-    //    bytes public constant RMOV_11 = hex"0D0E0E0F0F101000";
-    //    bytes public constant RMOV_15 = hex"1100111212131314";
-    //    bytes public constant RMOV_19 = hex"1516161717181800";
-    //    bytes public constant RMOV_1D = hex"1900191A1A1B1B1C";
-    bytes public constant RMOVS = hex"0000000000000000010001020203030405060607070808000900090A0A0B0B0C0D0E0E0F0F101000110011121213131415161617171818001900191A1A1B1B1C";
-
-    //    bytes public constant JUMP_01 = hex"000A090B0A0C0B00";
-    //    bytes public constant JUMP_05 = hex"000E0D0F0E100F00";
-    //    bytes public constant JUMP_09 = hex"0012111312141300";
-    //    bytes public constant JUMP_0D = hex"0016151716181700";
-    //    bytes public constant JUMP_11 = hex"001A191B1A1C1B00";
-    //    bytes public constant JUMP_15 = hex"001E1D1F1E201F00";
-    //    bytes public constant JUMP_19 = hex"0000000000000000";
-    //    bytes public constant JUMP_1D = hex"0000000000000000";
-
-    bytes public constant JUMPS = hex"000A090B0A0C0B00000E0D0F0E100F0000121113121413000016151716181700001A191B1A1C1B00001E1D1F1E201F0000000000000000000000000000000000";
-
-    //    bytes public constant RJMP_01 = hex"0000000000000000";
-    //    bytes public constant RJMP_05 = hex"0000000000000000";
-    //    bytes public constant RJMP_09 = hex"0002010302040300";
-    //    bytes public constant RJMP_0D = hex"0006050706080700";
-    //    bytes public constant RJMP_11 = hex"000A090B0A0C0B00";
-    //    bytes public constant RJMP_15 = hex"000E0D0F0E100F00";
-    //    bytes public constant RJMP_19 = hex"0012111312141300";
-    //    bytes public constant RJMP_1D = hex"0016151716181700";
-
-    bytes public constant RJUMP = hex"0000000000000000000000000000000000020103020403000006050706080700000A090B0A0C0B00000E0D0F0E100F0000121113121413000016151716181700";
-
     //             1       2       3       4
     // 1     │███│ o │███│ o │███│ o │███│ o │ 04
     // 5     │ o │███│ o │███│ o │███│ o │███│ 08
@@ -129,27 +87,15 @@ contract CheckersRules is IGameJutsuRules {
         bool isDirectionCorrect = isCheckerKing || isCheckerRed ? move.from > move.to : move.from < move.to;
 
         bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing) ||
-        move.isJump && _isJumpDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing);
-        bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state, move.from, move.to, isCheckerRed, isCheckerKing);
+        move.isJump && _isJumpDestinationCorrect(move.from, move.to);
+        bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
 
         uint8[32] memory cells = state.cells;
         if (move.isJump) {
             cells[move.to - 1] = cells[move.from - 1];
             cells[move.from - 1] = 0;
-
-            bytes1 jump = bytes1(move.to);
-            uint8 f2 = (move.from - 1) * 2;
-
-            if (JUMPS[f2] == jump) {
-                cells[uint8(MOVES[f2]) - 1] == 0;
-            } else if (JUMPS[f2 + 1] == jump) {
-                cells[uint8(MOVES[f2 + 1]) - 1] = 0;
-            } else if (RJUMP[f2] == jump) {
-                cells[uint8(RMOVS[f2]) - 1] = 0;
-            } else if (RJUMP[f2 + 1] == jump) {
-                cells[uint8(RMOVS[f2 + 1]) - 1] = 0;
-            }
-
+            uint8 jumpedCell = _jumpMiddle(move.from, move.to);
+            cells[jumpedCell - 1] = 0;
         }
         bool isPassMoveCorrect = !move.isJump && move.passMoveToOpponent ||
         move.isJump && move.passMoveToOpponent != _validJumpExists(cells, isPlayerRed);
@@ -192,42 +138,41 @@ contract CheckersRules is IGameJutsuRules {
         @param isKing is true if the checker doing the move is king
         */
     function _isMoveDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) private pure returns (bool) {
+        //TODO deduplicate with _canMove
+        if (_from == 0 || _to == 0) {
+            return false;
+        }
         uint8 from = _from - 1;
-        bytes1 to = bytes1(_to);
-        bool isRedMove = (
-        RMOVS[from * 2] == to ||
-        RMOVS[from * 2 + 1] == to
-        );
-        bool isWhiteMove = (
-        MOVES[from * 2] == to ||
-        MOVES[from * 2 + 1] == to
-        );
+        uint8 to = _to - 1;
 
-        return (isRed || isKing) && isRedMove || (!isRed || isKing) && isWhiteMove;
+        uint8 row = from / 4;
+        uint8 col = from % 4;
+        int8 rowDiff = isRed ? - 1 : int8(1);
+        int8 colDiff = - (int8(row) % 2);
+        int8 destination = 4 * (int8(row) + rowDiff) + int8(col) + colDiff;
+        int8 backstination = 4 * (int8(row) - rowDiff) + int8(col) + colDiff;
+
+        return _isIndexInBounds(destination) &&
+        (to == uint8(destination) || to == uint8(destination) + 1) ||
+        isKing && _isIndexInBounds(backstination) &&
+        (to == uint8(backstination) || to == uint8(backstination) + 1);
+    }
+    // 1-based
+    function _jumpMiddle(uint8 from, uint8 to) private pure returns (uint8){
+        return (from + to + 1 - ((from - 1) / 4 % 2)) / 2;
     }
 
     /**
-        @param state `abi.encode`d `State` struct
+        @param cells array of 32 `uint8`s representing the board
         @param from 1-based index of the cell from which the checker is moved
         @param to 1-based index of the cell to which the checker is moved
         @param isPlayerRed is true if the player doing the move plays red
-        @param isKing is true if the checker doing the move is king
         */
-    function _isCaptureCorrect(State memory state, uint8 from, uint8 to, bool isPlayerRed, bool isKing) private pure returns (bool) {
+    function _isCaptureCorrect(uint8[32] memory cells, uint8 from, uint8 to, bool isPlayerRed) private pure returns (bool) {
         bytes1 jump = bytes1(to);
         uint8 f2 = (from - 1) * 2;
         uint8 opponent = _opponent(isPlayerRed);
-        if (JUMPS[f2] == jump) {
-            return state.cells[uint8(MOVES[f2]) - 1] == opponent;
-        } else if (JUMPS[f2 + 1] == jump) {
-            return state.cells[uint8(MOVES[f2 + 1]) - 1] == opponent;
-        } else if (RJUMP[f2] == jump) {
-            return state.cells[uint8(RMOVS[f2]) - 1] == opponent;
-        } else if (RJUMP[f2 + 1] == jump) {
-            return state.cells[uint8(RMOVS[f2 + 1]) - 1] == opponent;
-        } else {
-            return false;
-        }
+        return cells[_jumpMiddle(from, to) - 1] == opponent;
     }
 
     function _opponent(bool isPlayerRed) private pure returns (uint8) {
@@ -235,19 +180,9 @@ contract CheckersRules is IGameJutsuRules {
     }
 
 
-    function _isJumpDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) private pure returns (bool) {
-        bytes1 to = bytes1(_to);
-        uint8 from = _from - 1;
-        bool isRedJump = (
-        RJUMP[from * 2] == to ||
-        RJUMP[from * 2 + 1] == to
-        );
-        bool isWhiteJump = (
-        JUMPS[from * 2] == to ||
-        JUMPS[from * 2 + 1] == to
-        );
-
-        return (isRed || isKing) && isRedJump || (!isRed || isKing) && isWhiteJump;
+    function _isJumpDestinationCorrect(uint8 from, uint8 to) private pure returns (bool) {
+        uint8 diff = to > from ? to - from : from - to;
+        return diff == 7 || diff == 9;
     }
 
     /**
@@ -349,12 +284,24 @@ contract CheckersRules is IGameJutsuRules {
         if (cells[from] == 0)
             return false;
         bool isRed = cells[from] % 16 == 2;
-        //TODO deduplicate
         bool isKing = cells[from] / 16 == 10;
-        uint8 f2 = from * 2;
-        bool redCanMove = RMOVS[from * 2] > 0 && cells[uint8(RMOVS[from * 2]) - 1] == 0 || RMOVS[from * 2 + 1] > 0 && cells[uint8(RMOVS[from * 2 + 1]) - 1] == 0;
-        bool whiteCanMove = MOVES[from * 2] > 0 && cells[uint8(MOVES[from * 2]) - 1] == 0 || MOVES[from * 2 + 1] > 0 && cells[uint8(MOVES[from * 2 + 1]) - 1] == 0;
-        return isRed && redCanMove || !isRed && whiteCanMove || isKing && (redCanMove || whiteCanMove);
+        uint8 row = from / 4;
+        uint8 col = from % 4;
+        int8 rowDiff = isRed ? - 1 : int8(1);
+        int8 colDiff = - (int8(row) % 2);
+        int8 destination = 4 * (int8(row) + rowDiff) + int8(col) + colDiff;
+        int8 backstination = 4 * (int8(row) - rowDiff) + int8(col) + colDiff;
+
+        return _isCellEmpty(cells, destination) || isKing && _isCellEmpty(cells, backstination);
+    }
+
+    //0-based
+    function _isIndexInBounds(int8 i) private pure returns (bool) {
+        return i >= 0 && i < 32;
+    }
+
+    function _isCellEmpty(uint8[32] memory cells, int8 i) private pure returns (bool) {
+        return _isIndexInBounds(i) && cells[uint8(i)] == 0;
     }
 
 
@@ -366,19 +313,43 @@ contract CheckersRules is IGameJutsuRules {
         if (cells[from] == 0)
             return false;
         bool isRed = cells[from] % 16 == 2;
-        //TODO deduplicate
         bool isKing = cells[from] / 16 == 10;
-        uint8 f2 = from * 2;
-//        bool redCanJump = RJUMP[f2 + 1] > 0;// && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1;
-        bool redCanJump = RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 1 ||
-        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 1 ||
-        isKing && (JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 1 ||
-        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 1);
-        bool whtCanJump = JUMPS[f2] > 0 && cells[uint8(JUMPS[f2]) - 1] == 0 && cells[uint8(MOVES[f2]) - 1] % 16 == 2 ||
-        JUMPS[f2 + 1] > 0 && cells[uint8(JUMPS[f2 + 1]) - 1] == 0 && cells[uint8(MOVES[f2 + 1]) - 1] % 16 == 2 ||
-        isKing && (RJUMP[f2] > 0 && cells[uint8(RJUMP[f2]) - 1] == 0 && cells[uint8(RMOVS[f2]) - 1] % 16 == 2 ||
-        RJUMP[f2 + 1] > 0 && cells[uint8(RJUMP[f2 + 1]) - 1] == 0 && cells[uint8(RMOVS[f2 + 1]) - 1] % 16 == 2);
-        return isRed && redCanJump || !isRed && whtCanJump;
+        uint8 row = from / 4;
+        uint8 col = from % 4;
+        int8 destinationRowDiff = isRed ? (- 2) : int8(2);
+        int8 eatenColumnDiff = (int8(row) % 2) - 1;
+        //TODO
+        uint8 eatenColor = isRed ? 1 : 2;
+
+        return _canJumpTo(cells, row, col, destinationRowDiff, eatenColumnDiff, eatenColor) ||
+        isKing && _canJumpTo(cells, row, col, - destinationRowDiff, eatenColumnDiff, eatenColor);
+    }
+
+    function _canEat(uint8[32] memory cells, int8 to, int8 eaten, uint8 eatenColor) private pure returns (bool){
+        return to >= 0 && to <= 31 &&
+        eaten >= 0 && eaten <= 31 &&
+        cells[uint8(to)] == 0 && cells[uint8(eaten)] % 16 == eatenColor;
+    }
+
+    function _canJumpTo(
+        uint8[32] memory cells,
+        uint8 row,
+        uint8 column,
+        int8 destinationRowDiff,
+        int8 eatenColumnDiff,
+        uint8 eatenColor)
+    private pure returns (bool){
+        int8 eatenRowDiff = destinationRowDiff / 2;
+        int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
+        int8 eatenBase = (int8(row) + eatenRowDiff) * 4 + int8(column) + eatenColumnDiff;
+
+        if (
+            _canEat(cells, destinationBase - 1, eatenBase, eatenColor) ||
+            _canEat(cells, destinationBase + 1, eatenBase + 1, eatenColor)
+        ) {
+            return true;
+        }
+        return false;
     }
 
 
