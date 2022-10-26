@@ -282,7 +282,7 @@ def possible_moves(position: int, red: bool, king: bool) -> Generator[int, None,
     if king:
         rows = [row_num - 1, row_num + 1]
 
-    columns = [row_num % 2 + column_num + d for d in [-1, 0]]
+    columns = [ (-row_num % 2) + column_num + d for d in [0, 1]]
 
     for ci in range(2):
         for ri in range(2):
@@ -302,7 +302,7 @@ def possible_jumps(position: int, red: bool, king: bool) -> Generator[tuple[int,
         eaten__rows = [row_num - 1, row_num + 1]
 
     target_columns = [ci for ci in [column_num - 1, column_num + 1]]
-    eaten__columns = [row_num % 2 + column_num + d for d in [0, 1]]
+    eaten__columns = [(-row_num % 2) + column_num + d for d in [0, 1]]
 
     for ci in range(2):
         for ri in range(2):
@@ -323,7 +323,7 @@ def has_jump(cells: list[int], position: int) -> bool:
     column_num = position % 4
 
     row_t_inc = -2 if red else 2
-    column_e_inc = -1 if row_num % 2 else 0
+    column_e_inc = 0 if row_num % 2 else -1
     to_eat = 1 if red else 2
 
     def am_eat_when_move(cells, to_eat, target, eaten):

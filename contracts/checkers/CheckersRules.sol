@@ -317,12 +317,11 @@ contract CheckersRules is IGameJutsuRules {
         uint8 row = from / 4;
         uint8 col = from % 4;
         int8 destinationRowDiff = isRed ? (- 2) : int8(2);
-        int8 eatenColumnDiff = (int8(row) % 2) - 1;
-        //TODO
+        int8 eatenColumnDiff = int8(row) % int8(2) == 0 ? int8(0): int8(-1);
         uint8 eatenColor = isRed ? 1 : 2;
 
-        return _canJumpTo(cells, row, col, destinationRowDiff, eatenColumnDiff, eatenColor) ||
-        isKing && _canJumpTo(cells, row, col, - destinationRowDiff, eatenColumnDiff, eatenColor);
+        return _canJumpTo(cells, row, col, destinationRowDiff, eatenColumnDiff, eatenColor)
+        || (isKing && _canJumpTo(cells, row, col, -destinationRowDiff, eatenColumnDiff, eatenColor));
     }
 
     function _canEat(uint8[32] memory cells, int8 to, int8 eaten, uint8 eatenColor) private pure returns (bool){
@@ -340,9 +339,15 @@ contract CheckersRules is IGameJutsuRules {
         uint8 eatenColor)
     private pure returns (bool){
         int8 eatenRowDiff = destinationRowDiff / 2;
+        if (((int8(row) + destinationRowDiff) < 0) ||
+            ((int8(row) + destinationRowDiff)  > 7)) {
+                return false;
+            }
+        if ((int8(column) - 1 < 0) || (int8(column) - 1 > 3) ) {
+            return false;
+        }
         int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
         int8 eatenBase = (int8(row) + eatenRowDiff) * 4 + int8(column) + eatenColumnDiff;
-
         if (
             _canEat(cells, destinationBase - 1, eatenBase, eatenColor) ||
             _canEat(cells, destinationBase + 1, eatenBase + 1, eatenColor)
