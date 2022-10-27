@@ -118,8 +118,8 @@ def test_is_valid_move_single_red(rules, game_id, cells, from_cell, to_cell, red
     assert not rules.isValidMove(game_state, W, move)
 
     is_valid = red_moves and occupied_by_red(from_cell, cells) \
-        and unoccupied(to_cell, cells) \
-        and to_cell - 1 in possible_moves(from_cell -1, red_moves, False)
+               and unoccupied(to_cell, cells) \
+               and to_cell - 1 in possible_moves(from_cell - 1, red_moves, False)
 
     assert rules.isValidMove(game_state, R, move) == is_valid
 
@@ -148,7 +148,7 @@ def test_is_valid_move_multiple_white_checkers(rules, game_id, cells, from_cell,
 
 
 @given(
-    cells=(strategies.sets(strategies.integers(min_value=1, max_value=32), min_size=1, max_size=32).map(
+    cells=(strategies.sets(strategies.integers(min_value=1, max_value=32), min_size=2, max_size=32).map(
         lambda s: [2 if j + 1 in s else 0 for j in range(32)])),
     from_cell=st('uint8', min_value=1, max_value=32),
     to_cell=st('uint8', min_value=1, max_value=32),
@@ -163,11 +163,36 @@ def test_is_valid_move_multiple_red_checkers(rules, game_id, cells, from_cell, t
     move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
     assert not rules.isValidMove(game_state, W, move)
 
-    is_valid = red_moves and occupied_by_red(from_cell, cells)\
-        and unoccupied(to_cell, cells)\
-        and to_cell - 1 in possible_moves(from_cell - 1, red_moves, False)
+    is_valid = red_moves and occupied_by_red(from_cell, cells) \
+               and unoccupied(to_cell, cells) \
+               and to_cell - 1 in possible_moves(from_cell - 1, red_moves, False)
 
+    print(cells)
+    # print(f"red_moves: {red_moves}")
+    # print(f"from_cell: {from_cell}")
+    # print(f"to_cell: {to_cell}")
+    # print(f"game_state: {game_state}")
+    # print(f"move: {move}")
     assert rules.isValidMove(game_state, R, move) == is_valid
+
+
+def test_red_moves_5_1(rules, game_id):
+    #                  1       2       3       4
+    #      1  01 │███│   │███│ x │███│   │███│   │ 04 4
+    #      5  05 │ x │███│   │███│   │███│   │███│ 08 8
+    #      9  09 │███│   │███│   │███│   │███│   │ 0C 12
+    #      13 0D │   │███│   │███│   │███│   │███│ 10 16
+    #      17 11 │███│   │███│   │███│   │███│   │ 14 20
+    #      21 15 │   │███│   │███│   │███│   │███│ 18 24
+    #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
+    #      29 1D │   │███│   │███│   │███│   │███│ 20 32
+    #             1D      1E      1F      20
+    cells = [0, 2, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    nonce = 0
+    board = encode_board(cells=cells, red_moves=True, winner=0)
+    game_state = [game_id, nonce, board]
+    move = encode_move(fr=5, to=1, is_jump=False, pass_move=True)
+    assert rules.isValidMove(game_state, R, move)
 
 
 #                  1       2       3       4
@@ -227,52 +252,7 @@ def test_is_valid_jump_single_white(rules, game_id, cells, from_cell, to_cell, r
 #      25 19 │███│   │███│   │███│   │███│   │ 1C 28
 #      29 1D │   │███│   │███│   │███│   │███│ 20 32
 #             1D      1E      1F      20
-#                  1       2       3       4
-#      1  01 │███│   │███│   │███│   │███│   │ 04 4
-#          5  05 │   │███│ . │███│   │███│ . │███│ 08 8
-#      9  09 │███│   │███│ x │███│ x │███│   │ 0C 12
-#          13 0D │   │███│   │███│ o │███│   │███│ 10 16
-#      17 11 │███│   │███│ x │███│ x │███│   │ 14 20
-#          21 15 │   │███│ . │███│   │███│ . │███│ 18 24
-#      25 19 │███│   │███│   │███│   │███│   │ 1C 28
-#          29 1D │   │███│   │███│   │███│   │███│ 20 32
-#             1D      1E      1F      20
 
-# @given(
-#     cells=(strategies.tuples(
-#         strategies.integers(min_value=1, max_value=32),
-#         strategies.booleans(),
-#         strategies.booleans(),
-#         strategies.booleans(),
-#     ).map(
-#         lambda t: [  # t is (a random index from 1 to 32, and 3 random booleans)
-#             2 if j + 1 == t[0] else
-#             2 if j + 1 == t[0] - 9 and t[1] or
-#                  j + 1 == t[0] - 7 and t[2] or
-#                  j + 1 == t[0] + 7 and t[3] or
-#                  j + 1 == t[0] + 9 else
-#             0 for j in range(32)])),
-#     from_cell=st('uint8', min_value=1, max_value=32),
-#     to_cell=st('uint8', min_value=1, max_value=32),
-#     red_moves=st('bool'),
-#     nonce=st('uint256', max_value=100)
-# )
-# def test_is_valid_jump_single_red(rules, game_id, cells, from_cell, to_cell, red_moves, nonce):
-#     player_who_cannot_move = W
-#     board = [cells, red_moves, 0]
-#     board_encoded = encode_abi(STATE_TYPES, board)
-#     game_state = [game_id, nonce, board_encoded]
-#
-#     move = [from_cell, to_cell, True, False]
-#     move_encoded = encode_abi(MOVE_TYPES, move)
-#     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
-#
-#     is_valid = not red_moves and occupied_by_red(from_cell, cells) and unoccupied(to_cell, cells) and (
-#             to_cell == jump_down_left(from_cell) and occupied_by_white(down_left(from_cell), cells) or
-#             to_cell == jump_down_right(from_cell) and occupied_by_white(down_right(from_cell), cells)
-#     )
-#     assert rules.isValidMove(game_state, R, move_encoded) == is_valid
-#
 
 def possible_moves(position: int, red: bool, king: bool) -> Generator[int, None, None]:
     row_num = position // 4
@@ -282,7 +262,7 @@ def possible_moves(position: int, red: bool, king: bool) -> Generator[int, None,
     if king:
         rows = [row_num - 1, row_num + 1]
 
-    columns = [ -(row_num % 2) + column_num + d for d in [0, 1]]
+    columns = [-(row_num % 2) + column_num + d for d in [0, 1]]
 
     for ci in range(2):
         for ri in range(2):
@@ -303,7 +283,6 @@ def possible_jumps(position: int, red: bool, king: bool) -> Generator[tuple[int,
 
     target_columns = [ci for ci in [column_num - 1, column_num + 1]]
     eaten__columns = [-(row_num % 2) + column_num + d for d in [0, 1]]
-
 
     for ci in range(2):
         for ri in range(2):
@@ -1026,6 +1005,7 @@ def encode_move(fr: int, to: int, is_jump: bool, pass_move: bool) -> bytes:
 def encode_board(cells: List[int], red_moves: bool, winner: int = 0) -> bytes:
     board = [cells, red_moves, winner]
     return encode_abi(STATE_TYPES, board)
+
 
 def up_left(cell: int) -> int:
     d = 1 if cell % 8 > 4 else 0
