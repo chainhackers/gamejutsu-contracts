@@ -54,16 +54,16 @@ contract CheckersRules is IGameJutsuRules {
         bool passMoveToOpponent;
     }
 
-    //             1       2       3       4
-    // 1     │███│ o │███│ o │███│ o │███│ o │ 04
-    // 5     │ o │███│ o │███│ o │███│ o │███│ 08
-    // 9     │███│ o │███│ o │███│ o │███│ o │ 0C
-    // 13 0D │   │███│   │███│   │███│   │███│ 10
-    // 17 11 │███│   │███│   │███│   │███│   │ 14
-    // 21 15 │ x │███│ x │███│ x │███│ x │███│ 18
-    // 25 19 │███│ x │███│ x │███│ x │███│ x │ 1C
-    // 29 1D │ x │███│ x │███│ x │███│ x │███│ 20
-    //        1D      1E      1F      20
+    //             0       1       2       3
+    // 0     │███│ o │███│ o │███│ o │███│ o │ 03
+    // 4     │ o │███│ o │███│ o │███│ o │███│ 07
+    // 8     │███│ o │███│ o │███│ o │███│ o │ 0C
+    // 12 0C │   │███│   │███│   │███│   │███│ 0F
+    // 16 0F │███│   │███│   │███│   │███│   │ 13
+    // 20 14 │ x │███│ x │███│ x │███│ x │███│ 17
+    // 24 18 │███│ x │███│ x │███│ x │███│ x │ 1B
+    // 28 1C │ x │███│ x │███│ x │███│ x │███│ 1F
+    //         1C      1D      1E      1F
 
     /**
         @param _state is the state of the game represented by `abi.encode`d `State` struct
@@ -138,20 +138,37 @@ contract CheckersRules is IGameJutsuRules {
         @param isKing is true if the checker doing the move is king
         */
     function _isMoveDestinationCorrect(uint8 from, uint8 to, bool isRed, bool isKing) private pure returns (bool) {
-        //TODO deduplicate with _canMove
-
         uint8 row = from / 4;
         uint8 col = from % 4;
         int8 rowDiff = isRed ? - 1 : int8(1);
         int8 colDiff = - (int8(row) % 2);
-        int8 destination = 4 * (int8(row) + rowDiff) + int8(col) + colDiff;
-        int8 backstination = 4 * (int8(row) - rowDiff) + int8(col) + colDiff;
-        
-        return (_isIndexInBounds(destination) && to == uint8(destination))
-          || (_isIndexInBounds(destination + 1) && to == uint8(destination + 1))
-          || (isKing && _isIndexInBounds(backstination) && to == uint8(backstination))
-          || (isKing && _isIndexInBounds(backstination+1) && to == uint8(backstination + 1));
+        return _canMoveTo(int8(row) + rowDiff, int8(col) + colDiff, to) 
+        || isKing && _canMoveTo(int8(row) - rowDiff, int8(col) + colDiff, to);
     }
+
+    function _canMoveTo(
+        int8 targetRow,
+        int8 targetColumnLeft,
+        uint8 to)
+    private pure returns (bool){
+        if ((targetRow < 0) || (targetRow  > 7)) {
+            return false;
+        }
+        if (targetColumnLeft >= 0) {
+            int8 target = targetRow * 4 + targetColumnLeft;
+            if (target == int8(to)) {
+                return true;
+            }
+        }
+        if (targetColumnLeft + 1 <= 3) {
+            int8 target = targetRow * 4 + targetColumnLeft + 1;
+            if (target == int8(to)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
     function _jumpMiddle(uint8 from, uint8 to) private pure returns (uint8){
         return (from + to + 1 - ((from) / 4 % 2)) / 2;
     }
@@ -217,14 +234,14 @@ contract CheckersRules is IGameJutsuRules {
       */
     function defaultInitialGameState() external pure returns (bytes memory) {
 
-        // 1   │███│ o │███│ o │███│ o │███│ o │
-        // 5   │ o │███│ o │███│ o │███│ o │███│
-        // 9   │███│ o │███│ o │███│ o │███│ o │
-        // 13  │   │███│ 14│███│   │███│   │███│
-        // 17  │███│   │███│ 18│███│   │███│   │
-        // 21  │ x │███│ x │███│ x │███│ x │███│
-        // 25  │███│ x │███│ x │███│ x │███│ x │
-        // 29  │ x │███│ x │███│ x │███│ x │███│
+        // 0   │███│ o │███│ o │███│ o │███│ o │
+        // 4   │ o │███│ o │███│ o │███│ o │███│
+        // 8   │███│ o │███│ o │███│ o │███│ o │
+        // 12  │   │███│ 14│███│   │███│   │███│
+        // 16  │███│   │███│ 18│███│   │███│   │
+        // 20  │ x │███│ x │███│ x │███│ x │███│
+        // 24  │███│ x │███│ x │███│ x │███│ x │
+        // 28  │ x │███│ x │███│ x │███│ x │███│
 
         return abi.encode(State([
             1, 1, 1, 1,
@@ -363,8 +380,6 @@ contract CheckersRules is IGameJutsuRules {
 
     function _decodeMove(bytes calldata move) private pure returns (Move memory) {
         Move memory move = abi.decode(move, (Move));
-        move.from = move.from - 1;
-        move.to = move.to - 1;
         return move;
     }
 
