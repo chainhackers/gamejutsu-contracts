@@ -117,9 +117,9 @@ def test_is_valid_move_single_red(rules, game_id, cells, from_cell, to_cell, red
     move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
     assert not rules.isValidMove(game_state, W, move)
 
-    is_valid = red_moves and occupied_by_red(from_cell, cells) and unoccupied(to_cell, cells) and to_cell in [
-        up_left(from_cell),
-        up_right(from_cell)]
+    is_valid = red_moves and occupied_by_red(from_cell, cells) \
+        and unoccupied(to_cell, cells) \
+        and to_cell - 1 in possible_moves(from_cell -1, red_moves, False)
 
     assert rules.isValidMove(game_state, R, move) == is_valid
 
@@ -163,9 +163,9 @@ def test_is_valid_move_multiple_red_checkers(rules, game_id, cells, from_cell, t
     move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
     assert not rules.isValidMove(game_state, W, move)
 
-    is_valid = red_moves and occupied_by_red(from_cell, cells) and unoccupied(to_cell, cells) and to_cell in [
-        up_left(from_cell),
-        up_right(from_cell)]
+    is_valid = red_moves and occupied_by_red(from_cell, cells)\
+        and unoccupied(to_cell, cells)\
+        and to_cell - 1 in possible_moves(from_cell - 1, red_moves, False)
 
     assert rules.isValidMove(game_state, R, move) == is_valid
 
@@ -457,7 +457,7 @@ def test_red_king_jumps_9_2_5(rules, game_id):
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
     assert not rules.isValidMove(game_state, R, move_encoded)
-    
+
 
 def test_transition_single_move(rules, game_id):
     #                  1       2       3       4
@@ -1027,23 +1027,14 @@ def encode_board(cells: List[int], red_moves: bool, winner: int = 0) -> bytes:
     board = [cells, red_moves, winner]
     return encode_abi(STATE_TYPES, board)
 
-
 def up_left(cell: int) -> int:
     d = 1 if cell % 8 > 4 else 0
     return cell - 4 - d if cell % 8 != 5 and cell > 5 else 0
 
 
-def jump_up_left(cell: int) -> int:
-    return cell - 9 if cell % 8 not in [1, 5] and cell > 9 else 0
-
-
 def up_right(cell: int) -> int:
     d = 1 if cell % 8 > 4 else 0
     return cell - 3 - d if cell % 8 != 4 and cell > 4 else 0
-
-
-def jump_up_right(cell: int) -> int:
-    return cell - 7 if cell % 8 not in [0, 4] and cell > 8 else 0
 
 
 def down_left(cell: int) -> int:
