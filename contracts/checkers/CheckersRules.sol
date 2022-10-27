@@ -86,8 +86,8 @@ contract CheckersRules is IGameJutsuRules {
         bool isColorCorrect = isCheckerRed == isPlayerRed;
         bool isDirectionCorrect = isCheckerKing || isCheckerRed ? move.from > move.to : move.from < move.to;
 
-        bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing) ||
-        move.isJump && _isJumpDestinationCorrect(move.from, move.to);
+        bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing)
+            || move.isJump && _isJumpDestinationCorrect(move.from, move.to);
         bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
 
         uint8[32] memory cells = state.cells;
@@ -151,11 +151,11 @@ contract CheckersRules is IGameJutsuRules {
         int8 colDiff = - (int8(row) % 2);
         int8 destination = 4 * (int8(row) + rowDiff) + int8(col) + colDiff;
         int8 backstination = 4 * (int8(row) - rowDiff) + int8(col) + colDiff;
-
-        return _isIndexInBounds(destination) &&
-        (to == uint8(destination) || to == uint8(destination) + 1) ||
-        isKing && _isIndexInBounds(backstination) &&
-        (to == uint8(backstination) || to == uint8(backstination) + 1);
+        
+        return (_isIndexInBounds(destination) && to == uint8(destination))
+          || (_isIndexInBounds(destination + 1) && to == uint8(destination + 1))
+          || (isKing && _isIndexInBounds(backstination) && to == uint8(backstination))
+          || (isKing && _isIndexInBounds(backstination+1) && to == uint8(backstination + 1));
     }
     // 1-based
     function _jumpMiddle(uint8 from, uint8 to) private pure returns (uint8){
