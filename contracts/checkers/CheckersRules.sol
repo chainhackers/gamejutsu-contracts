@@ -343,16 +343,19 @@ contract CheckersRules is IGameJutsuRules {
             ((int8(row) + destinationRowDiff)  > 7)) {
                 return false;
             }
-        if ((int8(column) - 1 < 0) || (int8(column) + 1 > 3) ) {
-            return false;
+        if (int8(column) - 1 >= 0) {
+            int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
+            int8 eatenBase = (int8(row) + eatenRowDiff) * 4 + int8(column) + eatenColumnDiff;
+            if (_canEat(cells, destinationBase - 1, eatenBase, eatenColor)) {
+                return true;
+            }
         }
-        int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
-        int8 eatenBase = (int8(row) + eatenRowDiff) * 4 + int8(column) + eatenColumnDiff;
-        if (
-            _canEat(cells, destinationBase - 1, eatenBase, eatenColor) ||
-            _canEat(cells, destinationBase + 1, eatenBase + 1, eatenColor)
-        ) {
-            return true;
+        if (int8(column) + 1 <= 3) {
+            int8 destinationBase = (int8(row) + destinationRowDiff) * 4 + int8(column);
+            int8 eatenBase = (int8(row) + eatenRowDiff) * 4 + int8(column) + eatenColumnDiff;
+            if (_canEat(cells, destinationBase + 1, eatenBase + 1, eatenColor)) {
+                return true;
+            }
         }
         return false;
     }
