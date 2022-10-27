@@ -42,8 +42,8 @@ contract CheckersRules is IGameJutsuRules {
     }
 
     /**
-        @custom from 1-based index of the cell to move from
-        @custom to 1-based index of the cell to move to
+        @custom from index of the cell to move from
+        @custom to index of the cell to move to
         @custom isJump declares if the move is a jump
         @custom passMoveToOpponent declares explicitly if the next move is to be done by the opponent
       */
@@ -72,9 +72,9 @@ contract CheckersRules is IGameJutsuRules {
         */
     function isValidMove(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (bool) {
         State memory state = abi.decode(_state.state, (State));
-        Move memory move = abi.decode(_move, (Move));
+        Move memory move = _decodeMove(_move);
         bool isPlayerRed = playerId == 1;
-        bool isInBounds = move.from > 0 && move.from <= 32 && move.to > 0 && move.to <= 32;
+        bool isInBounds = move.from >= 0 && move.from < 32 && move.to >= 0 && move.to < 32;
         bool isCorrectPlayerMove = isPlayerRed == state.redMoves;
 
         bool isFromOccupied = _isCellOccupied(state, move.from);
@@ -92,10 +92,10 @@ contract CheckersRules is IGameJutsuRules {
 
         uint8[32] memory cells = state.cells;
         if (move.isJump) {
-            cells[move.to - 1] = cells[move.from - 1];
-            cells[move.from - 1] = 0;
+            cells[move.to] = cells[move.from];
+            cells[move.from] = 0;
             uint8 jumpedCell = _jumpMiddle(move.from, move.to);
-            cells[jumpedCell - 1] = 0;
+            cells[jumpedCell] = 0;
         }
         bool isPassMoveCorrect = !move.isJump && move.passMoveToOpponent ||
         move.isJump && move.passMoveToOpponent != _validJumpExists(cells, isPlayerRed);
@@ -114,36 +114,31 @@ contract CheckersRules is IGameJutsuRules {
 
     /**
         @param state `uint8[32]` array representing board cells, 0: empty, 01:W, 02:R, A1:WK, A2:RK
-        @param cell is 1-based index of the cell checked
+        @param cell is index of the cell checked
         */
     function _isCellOccupied(State memory state, uint8 cell) private pure returns (bool) {
-        return state.cells[cell - 1] != 0;
+        return state.cells[cell] != 0;
     }
 
     /**
-        @param cell is 1-based index of the cell checked
+        @param cell is index of the cell checked
         */
     function _isCheckerRed(State memory state, uint8 cell) private pure returns (bool) {
-        return state.cells[cell - 1] % 16 == 2;
+        return state.cells[cell] % 16 == 2;
     }
 
     function _isCheckerKing(State memory state, uint8 cell) private pure returns (bool) {
-        return state.cells[cell - 1] / 16 == 10;
+        return state.cells[cell] / 16 == 10;
     }
 
     /**
-        @param _from 1-based index of the cell from which the checker is moved
-        @param _to 1-based index of the cell to which the checker is moved
+        @param from index of the cell from which the checker is moved
+        @param to index of the cell to which the checker is moved
         @param isRed is true if the checker doing the move is red
         @param isKing is true if the checker doing the move is king
         */
-    function _isMoveDestinationCorrect(uint8 _from, uint8 _to, bool isRed, bool isKing) private pure returns (bool) {
+    function _isMoveDestinationCorrect(uint8 from, uint8 to, bool isRed, bool isKing) private pure returns (bool) {
         //TODO deduplicate with _canMove
-        if (_from == 0 || _to == 0) {
-            return false;
-        }
-        uint8 from = _from - 1;
-        uint8 to = _to - 1;
 
         uint8 row = from / 4;
         uint8 col = from % 4;
@@ -157,22 +152,19 @@ contract CheckersRules is IGameJutsuRules {
           || (isKing && _isIndexInBounds(backstination) && to == uint8(backstination))
           || (isKing && _isIndexInBounds(backstination+1) && to == uint8(backstination + 1));
     }
-    // 1-based
     function _jumpMiddle(uint8 from, uint8 to) private pure returns (uint8){
-        return (from + to + 1 - ((from - 1) / 4 % 2)) / 2;
+        return (from + to + 1 - ((from) / 4 % 2)) / 2;
     }
 
     /**
         @param cells array of 32 `uint8`s representing the board
-        @param from 1-based index of the cell from which the checker is moved
-        @param to 1-based index of the cell to which the checker is moved
+        @param from index of the cell from which the checker is moved
+        @param to index of the cell to which the checker is moved
         @param isPlayerRed is true if the player doing the move plays red
         */
     function _isCaptureCorrect(uint8[32] memory cells, uint8 from, uint8 to, bool isPlayerRed) private pure returns (bool) {
-        bytes1 jump = bytes1(to);
-        uint8 f2 = (from - 1) * 2;
         uint8 opponent = _opponent(isPlayerRed);
-        return cells[_jumpMiddle(from, to) - 1] == opponent;
+        return cells[_jumpMiddle(from, to)] == opponent;
     }
 
     function _opponent(bool isPlayerRed) private pure returns (uint8) {
@@ -193,16 +185,17 @@ contract CheckersRules is IGameJutsuRules {
         */
     function transition(GameState calldata _state, uint8 playerId, bytes calldata _move) external pure override returns (GameState memory) {
         State memory state = abi.decode(_state.state, (State));
-        Move memory move = abi.decode(_move, (Move));
-        uint8 newCellValue = state.cells[move.from - 1];
-        bool isRed = state.cells[move.from - 1] % 16 == 2;
+        Move memory move = _decodeMove(_move);
+        uint8 newCellValue = state.cells[move.from];
+        bool isRed = state.cells[move.from] % 16 == 2;
         if (_lastRow(move.to, isRed)) {
             newCellValue = newCellValue | 0xA0;
         }
-        state.cells[move.to - 1] = newCellValue;
-        state.cells[move.from - 1] = 0;
+        state.cells[move.to] = newCellValue;
+        state.cells[move.from] = 0;
         if (move.isJump) {
-            state.cells[(move.from + move.to) / 2 - (move.from % 8 > 4 ? 1 : 0)] = 0;
+            uint8 jumpedCell = _jumpMiddle(move.from, move.to);
+            state.cells[jumpedCell] = 0;
             if (!_validJumpExists(state.cells, state.redMoves)) {
                 state.redMoves = !state.redMoves;
             }
@@ -247,11 +240,11 @@ contract CheckersRules is IGameJutsuRules {
 
     /**
         @notice Check if the destination cell belongs to the last row for the specified color
-        @param to Destination cell index, 1-based
+        @param to Destination cell index
         @param isRed The color of the moving checker
         */
     function _lastRow(uint8 to, bool isRed) private pure returns (bool) {
-        return isRed && to <= 4 || !isRed && to >= 29;
+        return isRed && to <= 3 || !isRed && to >= 28;
     }
 
     function _validMovesExist(uint8[32] memory cells) private pure returns (bool whiteHasValidMoves, bool redHasValidMoves) {
@@ -278,7 +271,7 @@ contract CheckersRules is IGameJutsuRules {
     }
 
     /**
-        @param from 0-based index
+        @param from index
       */
     function _canMove(uint8[32] memory cells, uint8 from) private pure returns (bool) {
         if (cells[from] == 0)
@@ -295,7 +288,6 @@ contract CheckersRules is IGameJutsuRules {
         return _isCellEmpty(cells, destination) || isKing && _isCellEmpty(cells, backstination);
     }
 
-    //0-based
     function _isIndexInBounds(int8 i) private pure returns (bool) {
         return i >= 0 && i < 32;
     }
@@ -307,7 +299,7 @@ contract CheckersRules is IGameJutsuRules {
 
     /**
         @param cells array of 32 `uint8`s representing the board
-        @param from 0-based index
+        @param from index
       */
     function _canJump(uint8[32] memory cells, uint8 from) public pure returns (bool) {
         if (cells[from] == 0)
@@ -370,7 +362,10 @@ contract CheckersRules is IGameJutsuRules {
     }
 
     function _decodeMove(bytes calldata move) private pure returns (Move memory) {
-        return abi.decode(move, (Move));
+        Move memory move = abi.decode(move, (Move));
+        move.from = move.from - 1;
+        move.to = move.to - 1;
+        return move;
     }
 
     function _decodeState(bytes calldata state) private pure returns (State memory) {
