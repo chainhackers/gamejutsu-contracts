@@ -88,12 +88,16 @@ def test_red_jumps_with_multiple_red_checkers_remaining(rules, game_id, gas_chec
     tx = gas_checker.callIsValidMove(rules, game_state, R, move)
     print(tx.info())
     assert tx.gas_used < 200000
+    # _canJump refactored
+    # Gas Used: 102731 / 12000000 (0.9%) unoptimized
 
     move = encode_move(fr=13, to=6, is_jump=True, pass_move=False)
     assert rules.isValidMove(game_state, R, move)
     tx = gas_checker.callIsValidMove(rules, game_state, R, move)
     print(tx.info())
     # Gas Used: 145828 / 12000000 (1.2%) unoptimized
+    # _canJump refactored
+    # Gas Used: 121919 / 12000000 (1.0%)
     assert tx.gas_used < 200000
 
 
