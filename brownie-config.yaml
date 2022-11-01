@@ -3,5 +3,10 @@ compiler:
     version: 0.8.17
     remappings:
       - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.8.0-rc.1/contracts"
+    optimizer:
+      enabled: true
+      runs: 5000
+      details:
+        cse: true
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.8.0-rc.1

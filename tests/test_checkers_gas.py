@@ -98,6 +98,7 @@ def test_red_jumps_with_multiple_red_checkers_remaining(rules, game_id, gas_chec
     # Gas Used: 145828 / 12000000 (1.2%) unoptimized
     # _canJump refactored
     # Gas Used: 121919 / 12000000 (1.0%)
+    # Gas Used: 122531 / 12000000 (1.0%)
     assert tx.gas_used < 200000
 
 
