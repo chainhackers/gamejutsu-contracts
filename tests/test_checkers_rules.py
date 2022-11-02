@@ -18,6 +18,11 @@ from random import randbytes
 from brownie.test import given, strategy as st
 from hypothesis import strategies
 
+WHITE = 1
+RED = 2
+WHITE_KING = 161
+RED_KING = 162
+
 
 @pytest.fixture(scope='module')
 def rules(CheckersRules, dev):
@@ -183,6 +188,67 @@ def test_red_king_moves_2_6(rules, game_id):
     move = encode_move(fr=2, to=6, is_jump=False, pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
+
+def test_red_king_jumps_back(rules, game_id):
+    #               0       1       2       3
+    #      0  │███│   │███│ x │███│   │███│   │ 3
+    #      4  │   │███│ o │███│   │███│   │███│ 7
+    #      8  │███│ . │███│   │███│   │███│   │ 11
+    #      12 │   │███│ o │███│   │███│   │███│ 15
+    #      16 │███│   │███│ . │███│   │███│   │ 19
+    #      20 │   │███│   │███│ o │███│   │███│ 23
+    #      24 │███│   │███│   │███│ . │███│   │ 27
+    #      28 │   │███│   │███│   │███│   │███│ 31
+    #           28      29      30      31
+    cells = [0, 162, 0, 0,
+             0, 1, 0, 0,
+             0, 0, 0, 0,
+             0, 1, 0, 0,
+             0, 0, 0, 0,
+             0, 0, 1, 0,
+             0, 0, 0, 0,
+             0, 0, 0, 0]
+    nonce = 0
+    board = encode_board(cells=cells, red_moves=True, winner=0)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=1, to=8, is_jump=True, pass_move=False)
+    assert rules.isValidMove(game_state, R, move)
+    game_state_1 = [game_id_1, nonce_1, board_1] = rules.transition(game_state, R, move)
+    assert game_id_1 == game_id
+    assert nonce_1 == nonce + 1
+    [cells_1, move_is_red_1, winner_1] = decode_abi(STATE_TYPES, board_1)
+    assert cells_1[1] == 0
+    assert cells_1[5] == 0
+    assert cells_1[8] == RED_KING
+    assert move_is_red_1
+    assert winner_1 == 0
+
+    move = encode_move(fr=8, to=17, is_jump=True, pass_move=False)
+    assert rules.isValidMove(game_state_1, R, move)
+    game_state_2 = [game_id_2, nonce_2, board_2] = rules.transition(game_state_1, R, move)
+    assert game_id_2 == game_id
+    assert nonce_2 == nonce + 2
+    [cells_2, move_is_red_2, winner_2] = decode_abi(STATE_TYPES, board_2)
+    assert cells_2[8] == 0
+    assert cells_2[13] == 0
+    assert cells_2[17] == RED_KING
+    assert move_is_red_2
+    assert winner_2 == 0
+
+    move = encode_move(fr=17, to=26, is_jump=True, pass_move=True)
+    assert rules.isValidMove(game_state_2, R, move)
+    game_state_3 = [game_id_3, nonce_3, board_3] = rules.transition(game_state_2, R, move)
+    assert game_id_3 == game_id
+    assert nonce_3 == nonce + 3
+    [cells_3, move_is_red_3, winner_3] = decode_abi(STATE_TYPES, board_3)
+    assert cells_3[17] == 0
+    assert cells_3[22] == 0
+    assert cells_3[26] == RED_KING
+    assert not move_is_red_3
+    assert winner_3 == RED
+
+
 def test_red_moves_4_0(rules, game_id):
     #                  0       1       2       3
     #      0  00 │███│   │███│ x │███│   │███│   │ 03 3
@@ -245,6 +311,7 @@ def test_is_valid_jump_single_white(rules, game_id, cells, from_cell, to_cell, r
     def is_valid_white_jump(jump):
         target, eaten = jump
         return occupied_by_red(eaten, cells) and to_cell == target
+
     has_valid_white_jump = any(map(is_valid_white_jump, possible_jumps(from_cell, red=False, king=False)))
 
     is_valid = not red_moves \
