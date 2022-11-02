@@ -9,7 +9,7 @@ TicTacToeRules ❎0️⃣
 https://polygonscan.com/address/0xC6F81d6610A0b1bcb8cC11d50602D490b7624a96
 
 CheckersRules 🙾🙾🙾🙾
-https://polygonscan.com/address/0x3dE9DD196141afddd4ff562D44Be37Fb932479cd
+https://polygonscan.com/address/0x4f4d4fC33827cEF701ca0b0bde6A9FAd9334cA74
 
 ### Entities
 - The Arbiter is a contract that is deployed on the blockchain and is used to resolve disputes between players.
