@@ -84,7 +84,7 @@ contract CheckersRules is IGameJutsuRules {
         bool isCheckerKing = _isKing(state.cells[move.from]);
 
         bool isColorCorrect = isCheckerRed == isPlayerRed;
-        bool isDirectionCorrect = isCheckerKing || isCheckerRed ? move.from > move.to : move.from < move.to;
+        bool isDirectionCorrect = isCheckerKing || (isCheckerRed ? move.from > move.to : move.from < move.to);
 
         bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing)
         || move.isJump && _isJumpDestinationCorrect(move.from, move.to);

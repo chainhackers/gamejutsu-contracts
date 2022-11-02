@@ -165,6 +165,24 @@ def test_is_valid_move_multiple_red_checkers(rules, game_id, cells, from_cell, t
     assert rules.isValidMove(game_state, R, move) == is_valid
 
 
+def test_red_king_moves_2_6(rules, game_id):
+    #                  0       1       2       3
+    #      0  00 │███│   │███│   │███│ x │███│   │ 03 3
+    #      4  04 │   │███│   │███│ . │███│   │███│ 07 7
+    #      8  08 │███│   │███│   │███│   │███│   │ 0B 11
+    #      12 0С │   │███│   │███│   │███│   │███│ 0F 15
+    #      16 10 │███│   │███│   │███│   │███│   │ 13 19
+    #      20 14 │   │███│   │███│   │███│   │███│ 17 23
+    #      24 18 │███│   │███│   │███│   │███│   │ 1B 27
+    #      28 1С │   │███│   │███│   │███│   │███│ 1F 31
+    #             1С      1D      1E      1F
+    cells = [0, 0, 162, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    nonce = 0
+    board = encode_board(cells=cells, red_moves=True, winner=0)
+    game_state = [game_id, nonce, board]
+    move = encode_move(fr=2, to=6, is_jump=False, pass_move=True)
+    assert rules.isValidMove(game_state, R, move)
+
 def test_red_moves_4_0(rules, game_id):
     #                  0       1       2       3
     #      0  00 │███│   │███│ x │███│   │███│   │ 03 3
