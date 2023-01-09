@@ -1142,14 +1142,14 @@ def test_white_cant_skip_jump(rules, game_id):
               2, 0, 0, 0,
               2, 2, 2, 2]
 
-    cell1 = [1, 1, 1, 1,
+    cell1 = (1, 1, 1, 1,
              1, 0, 0, 0,
              0, 1, 0, 0,
              1, 0, 0, 0,
              2, 1, 0, 2,
              0, 0, 0, 2,
              2, 0, 0, 0,
-             2, 2, 2, 2]
+             2, 2, 2, 2)
     nonce = 21
     board = encode_board(cells=cells0, red_moves=False)
     game_state = [game_id, nonce, board]

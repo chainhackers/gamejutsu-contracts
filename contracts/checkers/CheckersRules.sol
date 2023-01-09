@@ -90,6 +90,10 @@ contract CheckersRules is IGameJutsuRules {
         || move.isJump && _isJumpDestinationCorrect(move.from, move.to);
         bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
 
+        if (_validJumpExists(state.cells, isPlayerRed) != move.isJump) {
+            return false;
+        }
+
         uint8[32] memory cells = state.cells;
         if (move.isJump) {
             cells[move.to] = cells[move.from];
@@ -134,6 +138,12 @@ contract CheckersRules is IGameJutsuRules {
         || isKing && (_move(row, col, !isRed, false) == to || _move(row, col, !isRed, true) == to);
     }
 
+    /**
+        @notice no matter if `from` and `to` represent a valid jump, this function will return the cell in between
+        @param from index of the cell from which the checker is moved
+        @param to index of the cell to which the checker is moved
+        @return index of the cell in between `from` and `to`
+        */
     function _jumpMiddle(uint8 from, uint8 to) private pure returns (uint8){
         return (from + to + 1 - ((from) / 4 % 2)) / 2;
     }
