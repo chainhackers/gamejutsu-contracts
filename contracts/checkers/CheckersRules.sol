@@ -90,19 +90,20 @@ contract CheckersRules is IGameJutsuRules {
         || move.isJump && _isJumpDestinationCorrect(move.from, move.to);
         bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
 
-        if (_validJumpExists(state.cells, isPlayerRed) != move.isJump) {
-            return false;
+        if (!move.isJump) {
+            if (_validJumpExists(state.cells, isPlayerRed) || !move.passMoveToOpponent)
+                return false;
+        } else {
+            state.cells[move.to] = state.cells[move.from];
+            state.cells[move.from] = 0;
+            uint8 jumpedCell = _jumpMiddle(move.from, move.to);
+            state.cells[jumpedCell] = 0;
+
+            if (move.passMoveToOpponent == _validJumpExists(state.cells, isPlayerRed)) {
+                return false;
+            }
         }
 
-        uint8[32] memory cells = state.cells;
-        if (move.isJump) {
-            cells[move.to] = cells[move.from];
-            cells[move.from] = 0;
-            uint8 jumpedCell = _jumpMiddle(move.from, move.to);
-            cells[jumpedCell] = 0;
-        }
-        bool isPassMoveCorrect = !move.isJump && move.passMoveToOpponent ||
-        move.isJump && move.passMoveToOpponent != _validJumpExists(cells, isPlayerRed);
         return isCorrectPlayerMove &&
         isInBounds &&
         isFromOccupied &&
@@ -112,8 +113,7 @@ contract CheckersRules is IGameJutsuRules {
         isFromOccupied &&
         isToEmpty &&
         isToCorrect &&
-        isCaptureCorrect &&
-        isPassMoveCorrect;
+        isCaptureCorrect;
     }
 
     /**
