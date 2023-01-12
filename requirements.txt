@@ -1,2 +1,2 @@
-eth-account==0.8.0
+eth-account==0.7.0
 eth-brownie==1.19.1
