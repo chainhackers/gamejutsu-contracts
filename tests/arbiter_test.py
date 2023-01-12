@@ -57,7 +57,7 @@ STATE_TYPES = ["uint8[9]", "bool", "bool"]
 
 def test_propose_game(arbiter, rules, player_a, player_b):
     tx = arbiter.proposeGame(rules, [], {'value': 0, 'from': player_a.address})
-    assert tx.return_value == 0
+    assert tx.events['GameProposed']['gameId'] == 0
     game_rules, game_stake, game_started, game_finished = arbiter.games(0)
     assert game_rules == rules
     assert game_stake == 0
@@ -66,7 +66,7 @@ def test_propose_game(arbiter, rules, player_a, player_b):
     assert arbiter.getPlayers(0) == [player_a.address, ZERO_ADDRESS]
 
     tx = arbiter.proposeGame(rules, [], {'value': Wei("1 ether"), 'from': player_b.address})
-    assert tx.return_value == 1
+    assert tx.events['GameProposed']['gameId'] == 1
     game_rules, game_stake, game_started, game_finished = arbiter.games(1)
     assert game_rules == rules
     assert game_stake == "1 ether"
@@ -78,7 +78,7 @@ def test_propose_game(arbiter, rules, player_a, player_b):
 def test_accept_game(arbiter, rules, player_a, player_b):
     stake = Wei("0.1 ether")
     tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a.address})
-    game_id = tx.return_value
+    game_id = tx.events['GameProposed']['gameId']
     with reverts("Arbiter: stake mismatch"):
         arbiter.acceptGame(game_id, [], {'from': player_b.address})
     arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b.address})
@@ -95,7 +95,7 @@ def start_game(arbiter, rules):
     def start_it(player_a, player_b, stake):
         stake_wei = Wei(f"{stake} ether")
         tx = arbiter.proposeGame(rules, [], {'value': stake, 'from': player_a})
-        game_id = tx.return_value
+        game_id = tx.events['GameProposed']['gameId']
         arbiter.acceptGame(game_id, [], {'value': stake, 'from': player_b})
         return game_id
 
@@ -235,7 +235,7 @@ def test_is_valid_signed_move_session_address(arbiter, rules, player_a, player_b
     stake = Wei('0.1 ether')
     a_session = create_eth_account()
     tx = arbiter.proposeGame(rules, [a_session.address], {'value': stake, 'from': player_a.address})
-    game_id = tx.return_value
+    game_id = tx.events['GameProposed']['gameId']
 
     b_session = create_eth_account()
     arbiter.acceptGame(game_id, [b_session.address], {'value': stake, 'from': player_b.address})
@@ -530,7 +530,7 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b, create_eth_
     a_session = create_eth_account()
     b_session = create_eth_account()
     tx = arbiter.proposeGame(rules, [a_session.address], {'value': stake, 'from': player_a.address})
-    game_id = tx.return_value
+    game_id = tx.events['GameProposed']['gameId']
     assert 'GameProposed' in tx.events
     assert tx.events['GameProposed']['gameId'] == game_id
 
@@ -733,7 +733,7 @@ def test_timeout(arbiter, rules, start_game, player_a, player_b):
     expected_timeout = ts + arbiter.TIMEOUT()
     # AssertionError: assert 1664030008 == 1664030008 ± 3.0e+00
     # Brownie quirks workaround
-    assert expected_timeout <= e['timeout'] <= expected_timeout + 3
+    assert expected_timeout <= e['timeout'] <= expected_timeout + 5
     assert arbiter.timeouts(game_id)[0] == ts
 
     # ╭───┬───┬───╮
