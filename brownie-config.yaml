@@ -2,6 +2,11 @@ compiler:
   solc:
     version: 0.8.17
     remappings:
-      - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.8.0-rc.0/contracts"
+      - "@openzeppelin=OpenZeppelin/openzeppelin-contracts@4.8.0/contracts"
+    optimizer:
+      enabled: true
+      runs: 5000
+      details:
+        cse: true
 dependencies:
-  - OpenZeppelin/openzeppelin-contracts@4.8.0-rc.0
+  - OpenZeppelin/openzeppelin-contracts@4.8.0
