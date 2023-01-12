@@ -36,9 +36,9 @@ jobs:
       - name: Install dependencies
         run: |
           yarn global add ganache
-          pip install eth-brownie
+          pip install eth-brownie==1.19.1
           pip uninstall --yes eth-account
-          pip install eth-account
+          pip install eth-account==0.8.0
       - name: brownie-compile
         run: |
           brownie compile
