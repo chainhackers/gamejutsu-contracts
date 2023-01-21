@@ -214,7 +214,7 @@ contract CheckersRules is IGameJutsuRules {
         */
     function _isCaptureCorrect(uint8[32] memory cells, uint8 from, uint8 to, bool isPlayerRed) private pure returns (bool) {
         uint8 opponent = _opponent(isPlayerRed);
-        return cells[_jumpMiddle(from, to)] == opponent;
+        return cells[_jumpMiddle(from, to)] % 10 == opponent;
     }
 
     function _opponent(bool isPlayerRed) private pure returns (uint8) {
