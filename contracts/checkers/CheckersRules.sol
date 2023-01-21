@@ -356,21 +356,21 @@ contract CheckersRules is IGameJutsuRules {
 
         uint8 opponent = isRed ? 1 : 2;
         uint8 jump = _jump(row, col, isRed, false);
-        if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] == opponent) {
+        if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] % 10 == opponent) {
             return true;
         }
         jump = _jump(row, col, isRed, true);
-        if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] == opponent) {
+        if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] % 10 == opponent) {
             return true;
         }
 
         if (isKing) {
             jump = _jump(row, col, !isRed, false);
-            if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] == opponent) {
+            if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] % 10 == opponent) {
                 return true;
             }
             jump = _jump(row, col, !isRed, true);
-            if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] == opponent) {
+            if (_isCellEmpty(cells, jump) && cells[_jumpMiddle(from, jump)] % 10 == opponent) {
                 return true;
             }
         }

@@ -1209,12 +1209,62 @@ def test_red_dont_have_to_jump_after_a_non_jump_move(rules, game_id):
     assert rules.isValidMove(game_state, R, move)
     assert not rules.isValidMove(game_state, W, move)
 
-    next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
     assert next_game_id == game_id
     assert next_nonce == nonce + 1
     [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
     assert next_cells == cells1
     assert not next_move_is_red
+    assert next_winner == 0
+
+
+def test_red_first_jump_out_of_two(rules, game_id):
+    #               0       1       2       3
+    #      0  │███│ X │███│ X │███│   │███│   │ 3
+    #      4  │   │███│   │███│   │███│   │███│ 7
+    #      8  │███│   │███│   │███│   │███│   │ 11
+    #      12 │   │███│   │███│   │███│ O │███│ 15
+    #      16 │███│   │███│   │███│   │███│   │ 19
+    #      20 │   │███│   │███│ o │███│   │███│ 23
+    #      24 │███│   │███│ x │███│   │███│   │ 27
+    #      28 │   │███│   │███│   │███│   │███│ 31
+    #           28      29      30      31
+
+    cells0 = [162, 162, 0, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 161,
+              0, 0, 0, 0,
+              0, 0, 1, 0,
+              0, 2, 0, 0,
+              0, 0, 0, 0]
+
+    cells1 = (162, 162, 0, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 161,
+              0, 0, 2, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 0,
+              0, 0, 0, 0)
+
+    nonce = 47
+    board = encode_board(cells=cells0, red_moves=True)
+    game_state = [game_id, nonce, board]
+
+    move = encode_move(fr=25,
+                       to=18,
+                       is_jump=True,
+                       pass_move=False)
+    assert rules.isValidMove(game_state, R, move)
+    assert not rules.isValidMove(game_state, W, move)
+
+    next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
+    assert next_game_id == game_id
+    assert next_nonce == nonce + 1
+    [next_cells, next_move_is_red, next_winner] = decode_abi(STATE_TYPES, next_game_state)
+    assert next_cells == cells1
+    assert next_move_is_red
     assert next_winner == 0
 
 
