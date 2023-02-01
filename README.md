@@ -1,5 +1,5 @@
 # gamejutsu-contracts
-GameJutsu framework to create on-chain arbiters for state channel based games
+[GameJutsu](https://github.com/chainhackers/GameJutsu) is a way to create on-chain arbiters for state channel based games, so that multiplayer games can have rules enforced by on-demand on-chain verification instead of involving a centralized server or a smart-contract to verify every move
 
 ### Polygon mainnet contracts
 Arbiter 👩🏽‍⚖️
