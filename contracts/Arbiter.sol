@@ -176,15 +176,20 @@ contract Arbiter is IGameJutsuArbiter {
 
     /**
         @notice Submit 2 most recent signed moves to the arbiter to finish the game
+        @notice either the 2 moves must be from different players
+        @notice or
         @notice the first move must be signed by all players
-        @notice the second move must be signed at least by the player making the move
+        @notice and the second move must be signed at least by the player making the move
         @notice the new state of the second move must be final -i.e. reported by the rules contract as such
         @param signedMoves Array of 2 signed moves
       */
     function finishGame(SignedGameMove[2] calldata signedMoves) external
     movesInSequence(signedMoves)
     returns (address winner){
-        require(_isSignedByAllPlayersAndOnlyByPlayers(signedMoves[0]), "Arbiter: first move not signed by all players");
+        if(signedMoves[0].gameMove.player == signedMoves[1].gameMove.player){
+            require(_isSignedByAllPlayersAndOnlyByPlayers(signedMoves[0]), "Arbiter: both moves from the same player and first move not signed by all players");
+        } else
+            require(_moveSignedByMover(signedMoves[0]), "Arbiter: first move not signed by mover");
         require(_moveSignedByMover(signedMoves[1]), "Arbiter: second move not signed by mover");
 
         uint256 gameId = signedMoves[0].gameMove.gameId;

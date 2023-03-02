@@ -582,7 +582,7 @@ def test_finish_game(arbiter, rules, start_game, player_a, player_b, create_eth_
     signature_b = b_session.sign_message(encoded_o_center_move).signature
     signed_by_both_players_move = [
         o_center_move,
-        [signature_a, signature_b]
+        [signature_b, signature_a]
     ]
 
     signed_x_winning_move = [

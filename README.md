@@ -3,7 +3,7 @@
 
 ### Polygon mainnet contracts
 Arbiter 👩🏽‍⚖️
-https://polygonscan.com/address/0x1f0b6DB015198028d57Eb89785Fc81637f1e72F5
+https://polygonscan.com/address/0xE3Dc7e9e1b57A4c91546b391e5Eb31f8B630122E
 
 TicTacToeRules ❎0️⃣ 
 https://polygonscan.com/address/0xC6F81d6610A0b1bcb8cC11d50602D490b7624a96
