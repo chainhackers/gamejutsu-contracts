@@ -44,13 +44,11 @@ contract CheckersRules is IGameJutsuRules {
     /**
         @custom from index of the cell to move from
         @custom to index of the cell to move to
-        @custom isJump declares if the move is a jump
         @custom passMoveToOpponent declares explicitly if the next move is to be done by the opponent
       */
     struct Move {
         uint8 from;
         uint8 to;
-        bool isJump;
         bool passMoveToOpponent;
     }
 
@@ -86,11 +84,13 @@ contract CheckersRules is IGameJutsuRules {
         bool isColorCorrect = isCheckerRed == isPlayerRed;
         bool isDirectionCorrect = isCheckerKing || (isCheckerRed ? move.from > move.to : move.from < move.to);
 
-        bool isToCorrect = !move.isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing)
-        || move.isJump && _isJumpDestinationCorrect(move.from, move.to);
-        bool isCaptureCorrect = !move.isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
+        bool isJump = move.to > move.from ? move.to - move.from > 5 : move.from - move.to > 5;
+        
+        bool isToCorrect = !isJump && _isMoveDestinationCorrect(move.from, move.to, isCheckerRed, isCheckerKing)
+        || isJump && _isJumpDestinationCorrect(move.from, move.to);
+        bool isCaptureCorrect = !isJump || _isCaptureCorrect(state.cells, move.from, move.to, isCheckerRed);
 
-        if (!move.isJump) {
+        if (!isJump) {
             if (_validJumpExists(state.cells, isPlayerRed) || !move.passMoveToOpponent)
                 return false;
         } else {
@@ -243,7 +243,8 @@ contract CheckersRules is IGameJutsuRules {
         }
         state.cells[move.to] = newCellValue;
         state.cells[move.from] = 0;
-        if (move.isJump) {
+        bool isJump = move.to > move.from ? move.to - move.from > 5 : move.from - move.to > 5;
+        if (isJump) {
             uint8 jumpedCell = _jumpMiddle(move.from, move.to);
             state.cells[jumpedCell] = 0;
             if (!_validJumpExists(state.cells, state.redMoves)) {

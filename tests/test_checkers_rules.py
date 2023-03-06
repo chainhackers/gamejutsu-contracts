@@ -43,12 +43,11 @@ def game_id():
 # struct Move {
 #     uint8 from;
 #     uint8 to;
-#     bool isJump;
 #     bool passMoveToOpponent;
 # }
 
 STATE_TYPES = ["uint8[32]", "bool", "uint8"]
-MOVE_TYPES = ["uint8", "uint8", "bool", "bool"]
+MOVE_TYPES = ["uint8", "uint8", "bool"]
 
 W, R = 0, 1  # playerId
 
@@ -75,7 +74,7 @@ def test_is_valid_move_empty_board(rules, game_id, empty_cells, from_cell, to_ce
     empty_board = encode_board(empty_cells, red_moves=red_moves, winner=0)
     game_state = [game_id, nonce, empty_board]
 
-    move = [from_cell, to_cell, False, False]
+    move = [from_cell, to_cell, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, R, move_encoded)
     assert not rules.isValidMove(game_state, W, move_encoded)
@@ -92,7 +91,7 @@ def test_is_valid_move_single_white(rules, game_id, cells, from_cell, to_cell, r
     board = encode_board(cells, red_moves, winner=0)
     game_state = [game_id, nonce, board]
 
-    move = encode_move(from_cell, to_cell, is_jump=False, pass_move=False)
+    move = encode_move(from_cell, to_cell, pass_move=False)
     assert not rules.isValidMove(game_state, W, move)
 
     is_valid = not red_moves and cells[from_cell - 1] == 2 and from_cell // 4 < 7 and (
@@ -115,7 +114,7 @@ def test_is_valid_move_single_red(rules, game_id, cells, from_cell, to_cell, red
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
+    move = encode_move(fr=from_cell, to=to_cell, pass_move=True)
     assert not rules.isValidMove(game_state, W, move)
 
     is_valid = red_moves and occupied_by_red(from_cell, cells) \
@@ -138,7 +137,7 @@ def test_is_valid_move_multiple_white_checkers(rules, game_id, cells, from_cell,
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
+    move = encode_move(fr=from_cell, to=to_cell, pass_move=True)
     assert not rules.isValidMove(game_state, R, move)
 
     is_valid = not red_moves and occupied_by_white(from_cell, cells) \
@@ -160,7 +159,7 @@ def test_is_valid_move_multiple_red_checkers(rules, game_id, cells, from_cell, t
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = encode_move(fr=from_cell, to=to_cell, is_jump=False, pass_move=True)
+    move = encode_move(fr=from_cell, to=to_cell, pass_move=True)
     assert not rules.isValidMove(game_state, W, move)
 
     is_valid = red_moves and occupied_by_red(from_cell, cells) \
@@ -185,7 +184,7 @@ def test_red_king_moves_2_6(rules, game_id):
     nonce = 0
     board = encode_board(cells=cells, red_moves=True, winner=0)
     game_state = [game_id, nonce, board]
-    move = encode_move(fr=2, to=6, is_jump=False, pass_move=True)
+    move = encode_move(fr=2, to=6, pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
 
@@ -212,7 +211,7 @@ def test_red_king_jumps_back(rules, game_id):
     board = encode_board(cells=cells, red_moves=True, winner=0)
     game_state = [game_id, nonce, board]
 
-    move = encode_move(fr=1, to=8, is_jump=True, pass_move=False)
+    move = encode_move(fr=1, to=8, pass_move=False)
     assert rules.isValidMove(game_state, R, move)
     game_state_1 = [game_id_1, nonce_1, board_1] = rules.transition(game_state, R, move)
     assert game_id_1 == game_id
@@ -224,7 +223,7 @@ def test_red_king_jumps_back(rules, game_id):
     assert move_is_red_1
     assert winner_1 == 0
 
-    move = encode_move(fr=8, to=17, is_jump=True, pass_move=False)
+    move = encode_move(fr=8, to=17, pass_move=False)
     assert rules.isValidMove(game_state_1, R, move)
     game_state_2 = [game_id_2, nonce_2, board_2] = rules.transition(game_state_1, R, move)
     assert game_id_2 == game_id
@@ -236,7 +235,7 @@ def test_red_king_jumps_back(rules, game_id):
     assert move_is_red_2
     assert winner_2 == 0
 
-    move = encode_move(fr=17, to=26, is_jump=True, pass_move=True)
+    move = encode_move(fr=17, to=26, pass_move=True)
     assert rules.isValidMove(game_state_2, R, move)
     game_state_3 = [game_id_3, nonce_3, board_3] = rules.transition(game_state_2, R, move)
     assert game_id_3 == game_id
@@ -264,7 +263,7 @@ def test_red_moves_4_0(rules, game_id):
     nonce = 0
     board = encode_board(cells=cells, red_moves=True, winner=0)
     game_state = [game_id, nonce, board]
-    move = encode_move(fr=4, to=0, is_jump=False, pass_move=True)
+    move = encode_move(fr=4, to=0, pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
 
@@ -304,7 +303,7 @@ def test_is_valid_jump_single_white(rules, game_id, cells, from_cell, to_cell, r
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = [from_cell, to_cell, True, False]
+    move = [from_cell, to_cell, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
 
@@ -395,14 +394,13 @@ def test_is_valid_jump_single_red(rules, game_id, cells_and_pos, nonce):
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    is_jump = True
     pass_move = True
 
     for jump in possible_jumps(position, red=True, king=True):
         target, eaten = jump
         print(f"target: {target}")
         print(f"eaten: {eaten}")
-        move = [position, target, is_jump, pass_move]
+        move = [position, target, pass_move]
         move_encoded = encode_abi(MOVE_TYPES, move)
         assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
 
@@ -436,9 +434,8 @@ def test_white_cant_move_4_7(rules, game_id):
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    is_jump = False
     pass_move = True
-    move = [from_cell, to_cell, is_jump, pass_move]
+    move = [from_cell, to_cell, pass_move]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, W, move_encoded)
 
@@ -455,9 +452,8 @@ def test_red_can_not_jump_5_14(rules, game_id):
     player_who_cannot_move = W
     from_cell = 5
     to_cell = 14
-    is_jump = True
     pass_move = True
-    move = [from_cell, to_cell, is_jump, pass_move]
+    move = [from_cell, to_cell, pass_move]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
 
@@ -485,9 +481,8 @@ def test_red_king_jumps_12_5_9(rules, game_id):
     player_who_cannot_move = W
     from_cell = 12
     to_cell = 5
-    is_jump = True
     pass_move = True
-    move = [from_cell, to_cell, is_jump, pass_move]
+    move = [from_cell, to_cell, pass_move]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
     assert not rules.isValidMove(game_state, R, move_encoded)
@@ -495,9 +490,8 @@ def test_red_king_jumps_12_5_9(rules, game_id):
     player_who_cannot_move = W
     from_cell = 12
     to_cell = 5
-    is_jump = True
     pass_move = False
-    move = [from_cell, to_cell, is_jump, pass_move]
+    move = [from_cell, to_cell, pass_move]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
     assert rules.isValidMove(game_state, R, move_encoded)
@@ -526,9 +520,8 @@ def test_red_king_jumps_8_1_4(rules, game_id):
     player_who_cannot_move = W
     from_cell = 8
     to_cell = 1
-    is_jump = True
     pass_move = True
-    move = [from_cell, to_cell, is_jump, pass_move]
+    move = [from_cell, to_cell, pass_move]
     move_encoded = encode_abi(MOVE_TYPES, move)
     assert not rules.isValidMove(game_state, player_who_cannot_move, move_encoded)
     assert not rules.isValidMove(game_state, R, move_encoded)
@@ -554,7 +547,7 @@ def test_transition_single_move(rules, game_id):
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = [14, 9, False, False]
+    move = [14, 9, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move_encoded)
@@ -573,7 +566,7 @@ def test_transition_single_move(rules, game_id):
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = [14, 10, False, False]
+    move = [14, 10, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move_encoded)
     assert next_game_id == game_id
@@ -591,7 +584,7 @@ def test_transition_single_move(rules, game_id):
     board_encoded = encode_abi(STATE_TYPES, board)
     game_state = [game_id, nonce, board_encoded]
 
-    move = [14, 18, False, False]
+    move = [14, 18, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move_encoded)
     assert next_game_id == game_id
@@ -602,7 +595,7 @@ def test_transition_single_move(rules, game_id):
     assert not next_move_is_red
     assert next_winner == 2
 
-    move = [14, 17, False, False]
+    move = [14, 17, False]
     move_encoded = encode_abi(MOVE_TYPES, move)
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move_encoded)
     assert next_game_id == game_id
@@ -638,7 +631,6 @@ def test_transition_single_red_jump(rules, game_id):
 
     move = encode_move(fr=14,
                        to=5,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
@@ -654,7 +646,6 @@ def test_transition_single_red_jump(rules, game_id):
 
     move = encode_move(fr=14,
                        to=7,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
@@ -692,7 +683,6 @@ def test_transition_single_white_jump(rules, game_id):  # TODO only a king can d
 
     move = encode_move(fr=14,
                        to=5,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
@@ -708,7 +698,6 @@ def test_transition_single_white_jump(rules, game_id):  # TODO only a king can d
 
     move = encode_move(fr=14,
                        to=7,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
@@ -746,7 +735,6 @@ def test_transition_double_red_jump(rules, game_id):
 
     move = encode_move(fr=26,
                        to=17,
-                       is_jump=True,
                        pass_move=False)
     assert rules.isValidMove(game_state, R, move)
 
@@ -765,7 +753,6 @@ def test_transition_double_red_jump(rules, game_id):
 
     move = encode_move(fr=17,
                        to=10,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
@@ -802,7 +789,6 @@ def test_transition_double_white_jump(rules, game_id):
 
     move = encode_move(fr=10,
                        to=17,
-                       is_jump=True,
                        pass_move=False)
     assert rules.isValidMove(game_state, W, move)
 
@@ -821,7 +807,6 @@ def test_transition_double_white_jump(rules, game_id):
 
     move = encode_move(fr=17,
                        to=26,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
@@ -855,7 +840,6 @@ def test_transition_red_becomes_king(rules, game_id):
 
     move = encode_move(fr=5,
                        to=0,
-                       is_jump=False,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
@@ -869,7 +853,6 @@ def test_transition_red_becomes_king(rules, game_id):
 
     move = encode_move(fr=5,
                        to=1,
-                       is_jump=False,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, R, move)
@@ -905,7 +888,6 @@ def test_transition_single_white_jump_becomes_king(rules, game_id):
 
     move = encode_move(fr=21,
                        to=28,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
@@ -921,7 +903,6 @@ def test_transition_single_white_jump_becomes_king(rules, game_id):
 
     move = encode_move(fr=21,
                        to=30,
-                       is_jump=True,
                        pass_move=True)
 
     next_game_id, next_nonce, next_game_state = rules.transition(game_state, W, move)
@@ -954,7 +935,6 @@ def test_no_more_moves(rules, game_id):
 
     move = encode_move(fr=31,
                        to=27,
-                       is_jump=False,
                        pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
@@ -990,7 +970,6 @@ def test_no_more_moves(rules, game_id):
 
     move = encode_move(fr=9,
                        to=6,
-                       is_jump=False,
                        pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
@@ -1024,7 +1003,6 @@ def test_no_more_moves(rules, game_id):
 
     move = encode_move(fr=11,
                        to=7,
-                       is_jump=False,
                        pass_move=True)
     assert rules.isValidMove(game_state, R, move)
 
@@ -1057,7 +1035,6 @@ def test_white_king_jumps(rules, game_id):
 
     move = encode_move(fr=26,
                        to=17,
-                       is_jump=True,
                        pass_move=True)
     assert rules.isValidMove(game_state, W, move)
 
@@ -1106,7 +1083,6 @@ def test_red_jumps_22_15(rules, game_id):
 
     move = encode_move(fr=22,
                        to=15,
-                       is_jump=True,
                        pass_move=False)
     assert rules.isValidMove(game_state, R, move)
 
@@ -1156,7 +1132,6 @@ def test_white_cant_skip_jump(rules, game_id):
 
     move = encode_move(fr=14,
                        to=17,
-                       is_jump=False,
                        pass_move=True)
     assert not rules.isValidMove(game_state, R, move)
     assert not rules.isValidMove(game_state, W, move)
@@ -1204,7 +1179,6 @@ def test_red_dont_have_to_jump_after_a_non_jump_move(rules, game_id):
 
     move = encode_move(fr=9,
                        to=14,
-                       is_jump=False,
                        pass_move=True)
     assert rules.isValidMove(game_state, R, move)
     assert not rules.isValidMove(game_state, W, move)
@@ -1254,7 +1228,6 @@ def test_red_can_jump_over_white_king(rules, game_id):
 
     move = encode_move(fr=25,
                        to=18,
-                       is_jump=True,
                        pass_move=False)
     assert rules.isValidMove(game_state, R, move)
     assert not rules.isValidMove(game_state, W, move)
@@ -1304,7 +1277,6 @@ def test_red_can_jump_again_over_white_king(rules, game_id):
 
     move = encode_move(fr=16,
                        to=9,
-                       is_jump=True,
                        pass_move=False)
     assert rules.isValidMove(game_state, R, move)
     assert not rules.isValidMove(game_state, W, move)
@@ -1318,12 +1290,12 @@ def test_red_can_jump_again_over_white_king(rules, game_id):
     assert next_winner == 0
 
 
-def mov(fr: int, to: int, is_jump: bool, pass_move: bool) -> Tuple[int, int, bool, bool]:
-    return fr, to, is_jump, pass_move
+def mov(fr: int, to: int, pass_move: bool) -> Tuple[int, int, bool]:
+    return fr, to, pass_move
 
 
-def encode_move(fr: int, to: int, is_jump: bool, pass_move: bool) -> bytes:
-    move = mov(fr, to, is_jump, pass_move)
+def encode_move(fr: int, to: int, pass_move: bool) -> bytes:
+    move = mov(fr, to, pass_move)
     return encode_abi(MOVE_TYPES, move)
 
 
