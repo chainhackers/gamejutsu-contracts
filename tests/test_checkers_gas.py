@@ -32,7 +32,7 @@ def game_id():
 
 
 STATE_TYPES = ["uint8[32]", "bool", "uint8"]
-MOVE_TYPES = ["uint8", "uint8", "bool", "bool"]
+MOVE_TYPES = ["uint8", "uint8", "bool"]
 
 W, R = 0, 1  # playerId
 
@@ -52,7 +52,7 @@ def test_red_moves_4_0(rules, game_id, gas_checker):
     nonce = 0
     board = encode_board(cells=cells, red_moves=True, winner=0)
     game_state = [game_id, nonce, board]
-    move = encode_move(fr=4, to=0, is_jump=False, pass_move=True)
+    move = encode_move(fr=4, to=0, pass_move=True)
     assert rules.isValidMove(game_state, R, move)
     tx = gas_checker.callIsValidMove(rules, game_state, R, move)
     print(tx.info())
@@ -83,7 +83,7 @@ def test_red_jumps_with_multiple_red_checkers_remaining(rules, game_id, gas_chec
     nonce = 0
     board = encode_board(cells=cells, red_moves=True, winner=0)
     game_state = [game_id, nonce, board]
-    move = encode_move(fr=13, to=6, is_jump=True, pass_move=True)
+    move = encode_move(fr=13, to=6, pass_move=True)
     assert not rules.isValidMove(game_state, R, move)
     tx = gas_checker.callIsValidMove(rules, game_state, R, move)
     print(tx.info())
@@ -91,7 +91,7 @@ def test_red_jumps_with_multiple_red_checkers_remaining(rules, game_id, gas_chec
     # _canJump refactored
     # Gas Used: 102731 / 12000000 (0.9%) unoptimized
 
-    move = encode_move(fr=13, to=6, is_jump=True, pass_move=False)
+    move = encode_move(fr=13, to=6, pass_move=False)
     assert rules.isValidMove(game_state, R, move)
     tx = gas_checker.callIsValidMove(rules, game_state, R, move)
     print(tx.info())
@@ -102,8 +102,8 @@ def test_red_jumps_with_multiple_red_checkers_remaining(rules, game_id, gas_chec
     assert tx.gas_used < 200000
 
 
-def encode_move(fr: int, to: int, is_jump: bool, pass_move: bool) -> bytes:
-    move = mov(fr, to, is_jump, pass_move)
+def encode_move(fr: int, to: int, pass_move: bool) -> bytes:
+    move = mov(fr, to, pass_move)
     return encode_abi(MOVE_TYPES, move)
 
 
@@ -112,5 +112,5 @@ def encode_board(cells: List[int], red_moves: bool, winner: int = 0) -> bytes:
     return encode_abi(STATE_TYPES, board)
 
 
-def mov(fr: int, to: int, is_jump: bool, pass_move: bool) -> Tuple[int, int, bool, bool]:
-    return fr, to, is_jump, pass_move
+def mov(fr: int, to: int, pass_move: bool) -> Tuple[int, int, bool, bool]:
+    return fr, to, pass_move
