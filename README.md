@@ -26,6 +26,10 @@ ForceMove protocol: the mover is fully determined by the turn number
 
 GameJutsu protocol: the mover is determined by the game rules
 
+### Assumptions
+* Every game allows players to resign
+* 
+
 ### Simplifications
 * Outcomes: win/loss or draw, in case of a draw the funds are split between the players
 * Only 2 players are supported

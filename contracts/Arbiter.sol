@@ -14,6 +14,7 @@ import "@openzeppelin/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/utils/Address.sol";
 import "../interfaces/IGameJutsuRules.sol";
 import "../interfaces/IGameJutsuArbiter.sol";
+import "../interfaces/IGameService.sol";
 
 /**
     @title GameJutsu Arbiter
@@ -24,7 +25,7 @@ import "../interfaces/IGameJutsuArbiter.sol";
     @author Gene A. Tsvigun
     @author Vic G. Larson
   */
-contract Arbiter is IGameJutsuArbiter {
+contract Arbiter is IGameJutsuArbiter, IGameService {
     /**
         @custom startTime The moment one of the players gets fed up waiting for the other to make a move
         @custom gameMove GameMove structure with the last move of the complainer
