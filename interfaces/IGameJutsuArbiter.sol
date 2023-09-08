@@ -80,6 +80,8 @@ interface IGameJutsuArbiter {
 
     function acceptGame(uint256 gameId, address[] calldata sessionAddresses) payable external;
 
+    function cancelGame(uint256 gameId) external;
+
     function registerSessionAddress(uint256 gameId, address sessionAddress) external;
 
     function disputeMove(SignedGameMove calldata signedMove) external; //TODO mark the most important methods

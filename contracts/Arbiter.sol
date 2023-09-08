@@ -137,7 +137,6 @@ contract Arbiter is IGameJutsuArbiter {
         }
     }
 
-
     /**
         @notice Join a game, put the stake on the table
         @param gameId Game ID to join
@@ -160,6 +159,22 @@ contract Arbiter is IGameJutsuArbiter {
                 _registerSessionAddress(gameId, msg.sender, sessionAddresses[i]);
             }
         }
+    }
+
+    /**
+        @notice Cancel a game proposal and refund the stake
+        @notice Only the proposer can cancel a game
+        @notice Only a game that is not accepted can be cancelled
+        @param gameId Game ID to cancel
+    */
+    function cancelGame(uint256 gameId) external {
+        require(_gameExists(gameId), "Arbiter: the game does not exist");
+        require(!games[gameId].started, "Arbiter: can't cancel started games");
+        require(games[gameId].players[msg.sender] == 1, "Arbiter: only the initiator of a game can cancel it");
+        payable(msg.sender).transfer(games[gameId].stake);
+        delete games[gameId].playersArray[0];
+        delete games[gameId].players[msg.sender]; //session addresses stay undeleted, which is ok
+        delete games[gameId];
     }
 
     /**
@@ -186,7 +201,7 @@ contract Arbiter is IGameJutsuArbiter {
     function finishGame(SignedGameMove[2] calldata signedMoves) external
     movesInSequence(signedMoves)
     returns (address winner){
-        if(signedMoves[0].gameMove.player == signedMoves[1].gameMove.player){
+        if (signedMoves[0].gameMove.player == signedMoves[1].gameMove.player) {
             require(_isSignedByAllPlayersAndOnlyByPlayers(signedMoves[0]), "Arbiter: both moves from the same player and first move not signed by all players");
         } else
             require(_moveSignedByMover(signedMoves[0]), "Arbiter: first move not signed by mover");
@@ -372,14 +387,14 @@ contract Arbiter is IGameJutsuArbiter {
     function recoverAddress(GameMove calldata gameMove, bytes calldata signature) private view returns (address){
         //        https://codesandbox.io/s/gamejutsu-moves-eip712-no-nested-types-p5fnzf?file=/src/index.js
         bytes32 structHash = keccak256(abi.encode(
-                GAME_MOVE_TYPEHASH,
-                gameMove.gameId,
-                gameMove.nonce,
-                gameMove.player,
-                keccak256(gameMove.oldState),
-                keccak256(gameMove.newState),
-                keccak256(gameMove.move)
-            ));
+            GAME_MOVE_TYPEHASH,
+            gameMove.gameId,
+            gameMove.nonce,
+            gameMove.player,
+            keccak256(gameMove.oldState),
+            keccak256(gameMove.newState),
+            keccak256(gameMove.move)
+        ));
         bytes32 digest = ECDSA.toTypedDataHash(DOMAIN_SEPARATOR, structHash);
         return ECDSA.recover(digest, signature);
     }
@@ -396,10 +411,10 @@ contract Arbiter is IGameJutsuArbiter {
         IGameJutsuRules.GameState memory oldGameState = IGameJutsuRules.GameState(move.gameId, move.nonce, move.oldState);
         return keccak256(move.oldState) != keccak256(move.newState) &&
         game.started &&
-        !game.finished &&
-        game.players[move.player] != 0 &&
-        game.rules.isValidMove(oldGameState, game.players[move.player] - 1, move.move) &&
-        keccak256(game.rules.transition(oldGameState, game.players[move.player] - 1, move.move).state) == keccak256(move.newState);
+            !game.finished &&
+            game.players[move.player] != 0 &&
+            game.rules.isValidMove(oldGameState, game.players[move.player] - 1, move.move) &&
+            keccak256(game.rules.transition(oldGameState, game.players[move.player] - 1, move.move).state) == keccak256(move.newState);
     }
 
     /**
@@ -463,5 +478,9 @@ contract Arbiter is IGameJutsuArbiter {
 
     function _playerInGame(uint256 gameId, address player) private view returns (bool) {
         return games[gameId].players[player] != 0;
+    }
+
+    function _gameExists(uint256 gameId) private view returns (bool) {
+        return address(games[gameId].rules) != address(0);
     }
 }
